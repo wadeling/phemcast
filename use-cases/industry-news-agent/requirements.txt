@@ -1,0 +1,46 @@
+# Core LangGraph and LangChain dependencies
+langgraph>=0.2.0
+langchain>=0.2.0
+langchain-openai>=0.1.0
+langchain-community>=0.2.0
+
+# Web scraping and HTTP requests
+aiohttp>=3.9.0
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+feedparser>=6.0.0
+
+# Web framework and API
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+
+# Data validation and settings
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+
+# Email functionality
+aiosmtplib>=3.0.0
+email-validator>=2.1.0
+
+# Report generation
+reportlab>=4.0.0
+markdown>=3.5.0
+jinja2>=3.1.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.12.0
+pytest-cov>=4.1.0
+httpx>=0.25.0
+
+# Development and formatting
+black>=23.12.0
+isort>=5.13.0
+flake8>=6.1.0
+
+# Additional utilities
+python-dateutil>=2.8.0
+typing-extensions>=4.8.0 
