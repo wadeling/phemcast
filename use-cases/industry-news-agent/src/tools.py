@@ -41,7 +41,7 @@ class WebScrapingTool(BaseTool):
     settings: Settings
     
     def __init__(self, settings: Settings):
-        super().__init__()
+        super().__init__(settings=settings)
         self.settings = settings
     
     async def _arun(self, urls: List[str], max_articles: int = 5) -> tuple:
@@ -56,9 +56,49 @@ class WebScrapingTool(BaseTool):
         except Exception as e:
             return [], [f"Web scraping failed: {str(e)}"]
     
-    def _run(self, urls: List[str], max_articles: int = 5) -> tuple:
-        """Sync run wrapper that calls async version."""
-        return asyncio.run(self._arun(urls, max_articles))
+    def _run(self, *args, **kwargs) -> tuple:
+        """Sync run wrapper that handles various input formats from LangChain."""
+        try:
+            # Extract arguments from different possible formats
+            urls = None
+            max_articles = 5
+            
+            # Case 1: Arguments passed as positional args
+            if len(args) >= 1:
+                urls = args[0]
+                if len(args) >= 2:
+                    max_articles = args[1]
+            
+            # Case 2: Arguments passed as keyword args
+            if 'urls' in kwargs:
+                urls = kwargs['urls']
+            if 'max_articles' in kwargs:
+                max_articles = kwargs['max_articles']
+            
+            # Ensure urls is a list
+            if not isinstance(urls, list):
+                urls = [urls]
+            
+            # Check if we're already in an event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an event loop, run in a separate thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    def run_async():
+                        return asyncio.run(self._arun(urls, max_articles))
+                    future = executor.submit(run_async)
+                    return future.result()
+            except RuntimeError:
+                # No event loop running, use asyncio.run
+                return asyncio.run(self._arun(urls, max_articles))
+            
+        except Exception as e:
+            # Log the error for debugging
+            print(f"Error in WebScrapingTool._run: {e}")
+            print(f"Args: {args}")
+            print(f"Kwargs: {kwargs}")
+            raise e
 
 
 class AIContentAnalysisTool(BaseTool):
@@ -79,10 +119,11 @@ class AIContentAnalysisTool(BaseTool):
     llm: Optional[ChatOpenAI] = None
     
     def __init__(self, settings: Settings):
-        super().__init__()
-        self.settings = settings
+        # Initialize with required settings
+        super().__init__(settings=settings)
         self.llm = ChatOpenAI(
             openai_api_key=settings.openai_api_key,
+            openai_api_base=settings.openai_base_url,
             model=settings.openai_model,
             temperature=0.3,
             max_tokens=settings.max_tokens_per_article
@@ -104,9 +145,68 @@ class AIContentAnalysisTool(BaseTool):
         
         return analyzed_articles
     
-    def _run(self, articles: List[Article], analysis_config: Dict = None) -> List[Article]:
-        """Sync run wrapper."""
-        return asyncio.run(self._arun(articles, analysis_config))
+    def _run(self, *args, **kwargs) -> List[Article]:
+        """Sync run wrapper that handles various input formats from LangChain."""
+        try:
+            # LangChain might pass arguments as a single dictionary or as positional args
+            articles = None
+            analysis_config = None
+            
+            # Case 1: Arguments passed as positional args
+            if len(args) == 1 and isinstance(args[0], list):
+                articles = args[0]
+                analysis_config = kwargs.get('analysis_config')
+            elif len(args) == 1 and not isinstance(args[0], list):
+                # Single article passed
+                articles = [args[0]]
+                analysis_config = kwargs.get('analysis_config')
+            elif len(args) == 2:
+                articles = args[0]
+                analysis_config = args[1]
+            elif 'articles' in kwargs:
+                # Arguments passed as keyword args
+                articles = kwargs['articles']
+                analysis_config = kwargs.get('analysis_config')
+            else:
+                # No valid arguments found
+                raise ValueError(f"Invalid arguments: args={args}, kwargs={kwargs}")
+            
+            # Ensure articles is a list
+            if not isinstance(articles, list):
+                articles = [articles]
+            
+            # Validate that all articles are Article objects
+            from .models import Article
+            validated_articles = []
+            for article in articles:
+                if isinstance(article, Article):
+                    validated_articles.append(article)
+                elif isinstance(article, dict):
+                    # Convert dict to Article object
+                    validated_articles.append(Article(**article))
+                else:
+                    raise ValueError(f"Invalid article type: {type(article)}. Expected Article object or dict.")
+            
+            # Check if we're already in an event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an event loop, run in a separate thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    def run_async():
+                        return asyncio.run(self._arun(validated_articles, analysis_config))
+                    future = executor.submit(run_async)
+                    return future.result()
+            except RuntimeError:
+                # No event loop running, use asyncio.run
+                return asyncio.run(self._arun(validated_articles, analysis_config))
+            
+        except Exception as e:
+            # Log the error for debugging
+            print(f"Error in AIContentAnalysisTool._run: {e}")
+            print(f"Args: {args}")
+            print(f"Kwargs: {kwargs}")
+            raise e
     
     async def _analyze_article(self, article: Article, config: AnalysisConfig) -> Article:
         """Analyze a single article using AI."""
@@ -178,16 +278,65 @@ class ReportGenerationTool(BaseTool):
     settings: Settings
     
     def __init__(self, settings: Settings):
-        super().__init__()
+        super().__init__(settings=settings)
         self.settings = settings
     
-    def _run(self, articles: List[Article], email_recipients: List[str] = None, report_config: Dict = None) -> Dict:
+    def _run(self, *args, **kwargs) -> Dict:
         """Generate reports and optionally send via email."""
-        if not articles:
-            return {"error": "No articles provided for report generation"}
-        
-        import asyncio
-        return asyncio.run(self._arun(articles, email_recipients, report_config))
+        try:
+            # Extract arguments from different possible formats
+            articles = None
+            email_recipients = None
+            report_config = None
+            
+            # Case 1: Arguments passed as positional args
+            if len(args) >= 1:
+                articles = args[0]
+                if len(args) >= 2:
+                    email_recipients = args[1]
+                if len(args) >= 3:
+                    report_config = args[2]
+            
+            # Case 2: Arguments passed as keyword args
+            if 'articles' in kwargs:
+                articles = kwargs['articles']
+            if 'email_recipients' in kwargs:
+                email_recipients = kwargs['email_recipients']
+            if 'report_config' in kwargs:
+                report_config = kwargs['report_config']
+            
+            # Ensure articles is a list
+            if not isinstance(articles, list):
+                articles = [articles]
+            
+            # Handle email_recipients being a string instead of a list
+            if isinstance(email_recipients, str):
+                email_recipients = [email_recipients]
+            
+            if not articles:
+                return {"error": "No articles provided for report generation"}
+            
+            # Check if we're already in an event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an event loop, run in a separate thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    def run_async():
+                        return asyncio.run(self._arun(articles, email_recipients, report_config))
+                    future = executor.submit(run_async)
+                    return future.result()
+            except RuntimeError:
+                # No event loop running, use asyncio.run
+                import asyncio
+                return asyncio.run(self._arun(articles, email_recipients, report_config))
+            
+        except Exception as e:
+            # Log the error for debugging
+            print(f"Error in ReportGenerationTool._run: {e}")
+            print(f"Args: {args}")
+            print(f"Kwargs: {kwargs}")
+            raise e
     
     async def _arun(self, articles: List[Article], email_recipients: List[str] = None, report_config: Dict = None) -> Dict:
         """Async report generation."""
@@ -271,7 +420,7 @@ def analyze_content(articles: List[Dict], analysis_config: Dict = None) -> Dict:
     
     # Convert dicts to Article objects
     article_objects = [Article(**article) for article in articles]
-    analyzed = analyzer.run(article_objects, analysis_config)
+    analyzed = analyzer._run(articles=article_objects, analysis_config=analysis_config)
     
     return {
         "articles": [article.model_dump() for article in analyzed],

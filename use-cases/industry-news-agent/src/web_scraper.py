@@ -84,7 +84,26 @@ class AsyncWebScraper:
             # Normalize URL first
             url = self._normalize_url(url)
             
-            # Detect platform and route to appropriate scraper
+            # Check if URL is already a specific article
+            if self._is_specific_article_url(url):
+                # Scrape this single article directly
+                article_data = await self._scrape_single_article(url)
+                if article_data:
+                    company_name = self._extract_company_name(url)
+                    article = Article(
+                        url=article_data['url'],
+                        title=article_data['title'],
+                        content=article_data['content'],
+                        company_name=company_name,
+                        author=article_data.get('author'),
+                        publish_date=article_data.get('publish_date'),
+                        word_count=len(article_data['content'].split())
+                    )
+                    return [article]
+                else:
+                    return []
+            
+            # Otherwise, treat as blog index page with multiple articles
             if self._is_rss_feed(url):
                 return await self._scrape_rss(url, max_articles)
             elif "medium.com" in url.lower():
@@ -257,9 +276,24 @@ class AsyncWebScraper:
         """Find article links in the page."""
         links = []
         
-        # Common selectors for article links
+        # Enhanced selectors for modern blogs including Wiz.io
         selectors = [
-            'a[href*="/"]',  # All links
+            # Modern blog frameworks (Next.js, React, etc.)
+            'a[href^="/blog/"]',
+            'article a[href^="/blog/"]',
+            'section a[href^="/blog/"]',
+            
+            # Traditional blog selectors
+            'h2 a[href^="/blog/"]',
+            'h3 a[href^="/blog/"]',
+            '.post-title a[href^="/blog/"]',
+            '.entry-title a[href^="/blog/"]',
+            
+            # Generic article links
+            'a[href*="/blog/"]',
+            '.blog-post a[href*="/blog/"]',
+            
+            # Fallback selectors
             'h2 a',
             'h3 a',
             '.post-title a',
@@ -272,14 +306,134 @@ class AsyncWebScraper:
             found = soup.select(selector)
             for link in found:
                 href = link.get('href')
-                if href and ('http' not in href or base_url in href):
-                    links.append(link)
-                    if len(links) >= 20:  # Reasonable limit
-                        break
+                if href:
+                    # Convert relative URLs to absolute
+                    full_url = urljoin(base_url, href)
+                    
+                    # Filter for blog articles and avoid navigation/other pages
+                    if self._is_valid_article_url(full_url, base_url):
+                        links.append(link)
+                        if len(links) >= 20:  # Reasonable limit
+                            break
             if links:
                 break
         
         return links
+    
+    def _is_specific_article_url(self, url: str) -> bool:
+        """Check if URL is a specific article URL (not a blog index)."""
+        from urllib.parse import urlparse
+        
+        parsed = urlparse(url)
+        path = parsed.path.lower()
+        
+        # Check if it looks like a specific article
+        # These patterns indicate specific articles rather than blog indexes
+        specific_article_patterns = [
+            '/blog/',  # Has blog path
+            '/articles/',
+            '/news/',
+            '/post/',
+            '/story/'
+        ]
+        
+        # Must match a specific pattern and NOT be a blog index or listing
+        is_specific = any(pattern in path for pattern in specific_article_patterns)
+        
+        # Exclude blog indexes and listings
+        exclusion_patterns = [
+            '/blog$',  # Ends with /blog (the index)
+            '/blog/$',  # Ends with /blog/
+            '/blog/page/',
+            '/blog/category/',
+            '/blog/tag/',
+            '/blog/author/',
+            '/blog/archive/',
+            '/tag/',
+            '/category/',
+            '/page/',
+            '/archive/',
+            '/feed',
+            '/rss'
+        ]
+        
+        is_excluded = any(pattern in path for pattern in exclusion_patterns)
+        
+        # Also check if path has more than just the base blog path
+        # e.g., "/blog/article-title" is specific, "/blog" is not
+        path_parts = path.strip('/').split('/')
+        is_specific_length = len(path_parts) >= 2  # At least blog/article-name
+        
+        return is_specific and not is_excluded and is_specific_length
+    
+    def _is_valid_article_url(self, full_url: str, base_url: str) -> bool:
+        """Check if URL is a valid article URL."""
+        from urllib.parse import urlparse
+        
+        parsed = urlparse(full_url)
+        base_parsed = urlparse(base_url)
+        
+        # Check if same domain
+        if parsed.netloc != base_parsed.netloc:
+            return False
+        
+        # Check if it's a blog article URL
+        path = parsed.path.lower()
+        
+        # Valid blog article patterns
+        valid_patterns = [
+            '/blog/',  # Main blog articles
+            '/articles/',
+            '/news/',
+            '/post/',
+            '/story/'
+        ]
+        
+        # Avoid non-article pages
+        invalid_patterns = [
+            '/blog/tag/',
+            '/blog/category/',
+            '/blog/author/',
+            '/blog/page/',
+            '/blog/archive/',
+            '/tag/',
+            '/category/',
+            '/author/',
+            '/page/',
+            '/archive/',
+            '/search',
+            '/feed',
+            '/rss'
+        ]
+        
+        # Check if matches valid patterns
+        is_valid = any(pattern in path for pattern in valid_patterns)
+        
+        # Check if doesn't match invalid patterns
+        is_invalid = any(pattern in path for pattern in invalid_patterns)
+        
+        # Must be valid and not invalid
+        # Also ensure it's not just "/blog/" (the blog index)
+        return is_valid and not is_invalid and len(path) > len('/blog/')
+    
+    def _find_largest_text_block(self, soup: BeautifulSoup) -> Optional[BeautifulSoup]:
+        """Find the largest text block in the page as fallback content."""
+        text_blocks = []
+        
+        # Common content-bearing elements
+        content_elements = soup.find_all(['div', 'section', 'main', 'article'], recursive=True)
+        
+        for element in content_elements:
+            text = element.get_text(strip=True)
+            if len(text) > 200:  # Minimum reasonable content length
+                text_blocks.append((element, len(text)))
+        
+        if text_blocks:
+            # Sort by text length and return the largest
+            text_blocks.sort(key=lambda x: x[1], reverse=True)
+            return text_blocks[0][0]
+        
+        return None
     
     async def _scrape_single_article(self, url: str) -> Optional[Dict]:
         """Scrape content from a single article page."""
@@ -298,13 +452,27 @@ class AsyncWebScraper:
                 # Find article content
                 content_element = None
                 selectors = [
+                    # Modern websites (Wiz.io, etc.)
                     'article',
+                    '[data-layout="content"]',
+                    '.prose',
+                    '.content',
+                    '.article-content',
+                    
+                    # Traditional selectors
                     '.post-content',
                     '.entry-content',
                     '.article-content',
                     'main main',
                     '[itemprop="articleBody"]',
-                    '.blog-post-content'
+                    '.blog-post-content',
+                    
+                    # Additional fallbacks
+                    '.post-body',
+                    '.entry-body',
+                    '.story-content',
+                    '[role="main"] article',
+                    'section[class*="content"]'
                 ]
                 
                 for selector in selectors:
@@ -312,6 +480,10 @@ class AsyncWebScraper:
                     if element and len(element.get_text(strip=True)) > 50:
                         content_element = element
                         break
+                
+                # If no specific content found, try to find the largest text block
+                if not content_element:
+                    content_element = self._find_largest_text_block(soup)
                 
                 if not content_element:
                     return None

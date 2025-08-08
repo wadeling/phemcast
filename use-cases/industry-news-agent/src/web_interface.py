@@ -6,12 +6,17 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTasks
-from fastapi.templating import Jinja2Templates
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+from fastapi import FastAPI, HTTPException, Form, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from pathlib import Path
 import uvicorn
 
@@ -32,7 +37,8 @@ class ReportRequest(BaseModel):
     email: Optional[str] = Field(None, description="Email for report delivery")
     max_articles: int = Field(default=5, ge=1, le=20, description="Articles per blog to analyze")
 
-    @validator('urls', pre=True)
+    @field_validator('urls', mode='before')
+    @classmethod
     def parse_urls(cls, v):
         """Parse URLs from string or list."""
         if isinstance(v, str):
@@ -56,13 +62,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Setup templates and static files
-templates_path = Path(__file__).parent / "templates"
-templates = Jinja2Templates(directory=str(templates_path))
-static_dir = Path(__file__).parent / "static"
-if not static_dir.exists():
-    static_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+# Setup static files - serve from html directory
+html_dir = Path(__file__).parent.parent / "html"
+if not html_dir.exists():
+    html_dir.mkdir(parents=True, exist_ok=True)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory=str(html_dir)), name="static")
+
+# Also mount individual directories for better organization
+css_dir = html_dir / "css"
+if css_dir.exists():
+    app.mount("/static/css", StaticFiles(directory=str(css_dir)), name="css")
+
+js_dir = html_dir / "js"
+if js_dir.exists():
+    app.mount("/static/js", StaticFiles(directory=str(js_dir)), name="js")
 
 # Global settings
 settings = load_settings()
@@ -70,153 +85,14 @@ settings = load_settings()
 
 @app.get("/")
 async def home():
-    """Serve the main web interface with simple HTML."""
-    html_content = """
-    <html>
-    <head>
-        <title>Industry News Agent</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-            .container { max-width: 600px; margin: auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            h1 { color: #2c5aa0; text-align: center; margin-bottom: 30px; }
-            .form-group { margin-bottom: 20px; }
-            label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
-            textarea, input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
-            textarea { height: 150px; resize: vertical; }
-            button { background: #2c5aa0; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; }
-            button:hover { background: #1e3d6f; }
-            .result { margin-top: 20px; padding: 15px; border-radius: 5px; }
-            .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-            .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-            .status { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-            #loading { display: none; text-align: center; margin-top: 20px; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>🏢 Industry News Agent</h1>
-            <form id="reportForm" onsubmit="handleSubmit(event)">
-                <div class="form-group">
-                    <label for="urls">Company Blog URLs (one per line):</label>
-                    <textarea id="urls" name="urls" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label for="email">Email for Report Delivery (optional):</label>
-                    <input type="email" id="email" name="email" placeholder="your.email@company.com">
-                </div>
-                
-                <div class="form-group">
-                    <label for="max_articles">Maximum Articles per Blog:</label>
-                    <select id="max_articles" name="max_articles">
-                        <option value="3">3 articles</option>
-                        <option value="5" selected>5 articles</option>
-                        <option value="10">10 articles</option>
-                        <option value="20">20 articles</option>
-                    </select>
-                </div>
-                
-                <button type="submit">Generate Report</button>
-                
-                <div id="loading">
-                    <strong>Processing...</strong><br>
-                    This may take a few minutes...<br>
-                    <small>Scraping articles and analyzing content...</small>
-                </div>
-                
-                <div id="result"></div>
-            </form>
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">
-                <strong>Features:</strong> AI-powered analysis • Smart insights • PDF & Markdown reports • Rate-limited scraping<br>
-                <strong>API:</strong> POST to /api/generate-report for programmatic access
-            </div>
-            
-            <script>
-                async function handleSubmit(event) {
-                    event.preventDefault();
-                    
-                    const formData = new FormData();
-                    formData.append('urls', document.getElementById('urls').value);
-                    const email = document.getElementById('email').value;
-                    if (email) formData.append('email', email);
-                    formData.append('max_articles', document.getElementById('max_articles').value);
-                    
-                    document.getElementById('loading').style.display = 'block';
-                    document.getElementById('result').innerHTML = '';
-                    
-                    try {
-                        const response = await fetch('/api/generate-report-form', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        
-                        const result = await response.json();
-                        
-                        if (result.task_id) {
-                            document.getElementById('loading').style.display = 'none';
-                            document.getElementById('result').innerHTML = \`
-                                <div class="result success">
-                                    <strong>✅ Report Generation Started</strong><br>
-                                    Task ID: \${result.task_id}<br><br>
-                                    <div id="status"></div>
-                                    <button onclick="checkStatus('\${result.task_id}')" 
-                                            style="background: #28a745; margin-top: 10px;">
-                                        Check Status
-                                    </button>
-                                </div>
-                            \`;
-                        }
-                    } catch (error) {
-                        document.getElementById('loading').style.display = 'none';
-                        document.getElementById('result').innerHTML = \`
-                            <div class="result error">
-                                <strong>❌ Error:</strong> \${error.message}
-                            </div>
-                        \`;
-                    }
-                }
-                
-                async function checkStatus(taskId) {
-                    try {
-                        const response = await fetch(\`/api/task/\${taskId}\`);
-                        const status = await response.json();
-                        
-                        const statusDiv = document.getElementById('status');
-                        
-                        if (status.status === 'completed') {
-                            statusDiv.innerHTML = \`
-                                <strong>✅ Completed!</strong><br>
-                                Analyzed: \${status.total_articles || 0} articles<br>
-                                \${status.report_paths ? Object.keys(status.report_paths).map(k => \`
-                                    <a href="/api/download/\${taskId}/\${k}" 
-                                       target="_blank" style="color: blue;">Download \${k.toUpperCase()} Report</a><br>
-                                \`).join('') : ''}
-                                \${status.email_sent ? '<br>📧 Sent to email' : ''}
-                            \`;
-                        } else if (status.status === 'error') {
-                            statusDiv.innerHTML = \`<div style="color: red;"><strong>Error:</strong> \${status.error || 'Processing failed'}</div>\`;
-                        } else {
-                            statusDiv.innerHTML = \`
-                                <div class="status">
-                                    <strong>⏳ Status: \${status.status}</strong><br>
-                                    <small>Please refresh in 30 seconds...</small>
-                                </div>
-                            \`;
-                            
-                            if (status.status === 'processing') {
-                                setTimeout(() => checkStatus(taskId), 10000); // Check every 10 seconds
-                            }
-                        }
-                    } catch (error) {
-                        document.getElementById('status').innerHTML = \`<div style="color: red;">Status check failed: \${error.message}</div>\`;
-                    }
-                }
-            </script>
-        </div>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
+    """Serve the main web interface."""
+    html_file = html_dir / "index.html"
+    if not html_file.exists():
+        return JSONResponse(
+            {"error": "HTML interface not found. Please ensure html/index.html exists."},
+            status_code=500
+        )
+    return FileResponse(html_file, media_type="text/html")
 
 
 @app.get("/api/status")
@@ -302,6 +178,8 @@ async def generate_report_form(
     Returns:
         Task ID
     """
+    logger.info("=== FORM SUBMISSION RECEIVED ===")
+    logger.info(f"Generating report for {urls} with email {email} and max_articles {max_articles}")
     try:
         # Parse URLs from form
         url_list = [url.strip() for url in urls.split('\n') if url.strip()]
@@ -424,13 +302,16 @@ async def _process_report_task(
         agent = create_agent()
         result = await agent.run_workflow(urls, [email] if email else None, max_articles)
         
-        # Update task with results
+        # Update task with enhanced results
         running_tasks[task_id].update({
             "status": result["status"],
             "completed_at": datetime.now().isoformat(),
             "result": result,
             "report_paths": result.get("report_paths", {}),
             "total_articles": result.get("total_articles", 0),
+            "total_urls": result.get("total_urls", 0),
+            "processing_time": result.get("processing_time", 0),
+            "logs": result.get("logs", []),
             "errors": result.get("errors", [])
         })
         
@@ -441,90 +322,22 @@ async def _process_report_task(
         running_tasks[task_id].update({
             "status": "error",
             "error": str(e),
+            "logs": [f"❌ Processing failed: {str(e)}", "📋 See error details above"],
             "completed_at": datetime.now().isoformat()
         })
 
 
-# Add HTMLResponse for the home page
-from fastapi.responses import HTMLResponse
 
 
-# Let's make home redirect to the API
-@app.get("/")
-async def root():
-    return {"message": "Industry News Agent API", "docs": "/docs", "web_ui": "/", "health": "/api/health"}
-
-
-@app.get("/")
-async def home_html():
-    """Serve enhanced HTML interface."""
-    return app.routes[0].endpoint() if hasattr(app, 'routes') and app.routes else {"message": "Configure web interface"}
-
-
-# Reassign the root route to serve HTML
-from fastapi import Request
-from fastapi.responses import Response
-
-
-@app.get("/", response_class=HTMLResponse)
-async def serve_home():
-    """API endpoint that gives options."""
-    return HTMLResponse(content="""
-    <html>
-    <head><title>Industry News Agent API</title></head>
-    <body>
-        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px;">
-            <h1 style="color: #2c5aa0;">🏢 Industry News Agent</h1>
-            
-            <h2>API Endpoints</h2>
-            <ul>
-                <li><strong><a href="/docs">/docs</a></strong> - Interactive API documentation</li>
-                <li><strong>POST /api/generate-report</strong> - Generate reports (JSON)</li>
-                <li><strong>POST /api/generate-report-form</strong> - Generate reports (form)</li>
-                <li><strong>GET /api/task/{task_id}</strong> - Check task status</li>
-                <li><strong>GET /api/health</strong> - Health check</li>
-            </ul>
-            
-            <h2>Example Usage</h2>
-            <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
-POST /api/generate-report
-{
-    "urls": ["https://blog.openai.com", "https://engineering.linkedin.com"],
-    "email": "user@company.com",
-    "max_articles": 5
-}
-            </pre>
-            
-            <h2>Report Form</h2>
-            <form action="/api/generate-report-form" method="post" style="background: #fafafa; padding: 20px; border-radius: 5px;">
-                <div style="margin-bottom: 15px;">
-                    <label>URLs (one per line):</label><br>
-                    <textarea name="urls" rows="4" style="width: 100%;" required>
-https://blog.openai.com
-https://news.microsoft.com
-https://engineering.linkedin.com
-                    </textarea>
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label>Email:</label><br>
-                    <input type="email" name="email" style="width: 100%;" placeholder="your.email@company.com">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label>Max Articles per Blog:</label><br>
-                    <select name="max_articles">
-                        <option value="3">3</option>
-                        <option value="5" selected>5</option>
-                        <option value="10">10</option>
-                    </select>
-                </div>
-                <button type="submit" style="background: #2c5aa0; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
-                    Generate Report
-                </button>
-            </form>
-        </div>
-    </body>
-    </html>
-    """)
+@app.get("/api/docs")
+async def api_docs():
+    """API documentation redirect."""
+    return {"message": "API documentation available at /docs", "endpoints": {
+        "POST /api/generate-report": "Generate reports (JSON)",
+        "POST /api/generate-report-form": "Generate reports (form)",
+        "GET /api/task/{task_id}": "Check task status",
+        "GET /api/status": "System status"
+    }}
 
 
 if __name__ == "__main__":

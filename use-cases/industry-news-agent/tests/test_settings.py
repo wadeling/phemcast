@@ -16,6 +16,7 @@ class TestSettings:
         )
         
         assert settings.openai_api_key == "test_key"
+        assert settings.openai_base_url == "https://api.openai.com/v1"  # Default value
         assert settings.request_delay == 2.0  # Default value
         assert "smtp.gmail.com" in settings.user_agents or settings.smtp_server == "smtp.gmail.com"
     
@@ -53,3 +54,15 @@ class TestSettings:
         
         from pathlib import Path
         assert Path(settings.output_dir).exists()
+
+    def test_custom_openai_base_url(self):
+        """Test custom OpenAI base URL configuration."""
+        custom_url = "https://api.custom-openai.local/v1"
+        settings = Settings(
+            openai_api_key="test_key",
+            openai_base_url=custom_url,
+            email_username="test@example.com",
+            email_password="test_pass"
+        )
+        
+        assert settings.openai_base_url == custom_url

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     openai_model: str = Field(
         default="gpt-4-turbo-preview", description="OpenAI model to use"
     )
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1", description="OpenAI API base URL for compatible endpoints"
+    )
     max_tokens_per_article: int = Field(
         default=2000, description="Max tokens for summarization"
     )

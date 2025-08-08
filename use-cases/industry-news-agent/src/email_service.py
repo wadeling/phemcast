@@ -156,7 +156,7 @@ Attached files:
 
 Report includes:
 {chr(10).join([f"- {company}" for company in companies][:5])}
-{idf len(companies) > 5 else f"...and {len(companies) - 5} more"}\n
+{f"...and {len(companies) - 5} more" if len(companies) > 5 else ""}\n
 Best regards,
 Industry News Agent
 """

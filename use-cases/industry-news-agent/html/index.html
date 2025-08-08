@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industry News Agent</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🏢 Industry News Agent</h1>
+        <form id="reportForm" onsubmit="handleSubmit(event)">
+            <div class="form-group">
+                <label for="urls">Company Blog URLs (one per line):</label>
+                <textarea id="urls" name="urls" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email for Report Delivery (optional):</label>
+                <input type="email" id="email" name="email" placeholder="your.email@company.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="max_articles">Maximum Articles per Blog:</label>
+                <select id="max_articles" name="max_articles">
+                    <option value="3">3 articles</option>
+                    <option value="5" selected>5 articles</option>
+                    <option value="10">10 articles</option>
+                    <option value="20">20 articles</option>
+                </select>
+            </div>
+            
+            <button type="submit">Generate Report</button>
+            
+            <div id="loading">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <strong>Processing...</strong>
+                    <div id="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 0%" id="progress-fill"></div>
+                        </div>
+                    </div>
+                    <small id="current-step">Initializing...</small>
+                    <small class="process-steps">🔄 Scraping articles... 📊 Analyzing content... 📝 Generating reports...</small>
+                    <div id="process-log" class="log-output"></div>
+                </div>
+            </div>
+            
+            <div id="result"></div>
+        </form>
+        
+        <div class="features">
+            <strong>Features:</strong> AI-powered analysis • Smart insights • PDF & Markdown reports • Rate-limited scraping<br>
+            <strong>API:</strong> POST to /api/generate-report for programmatic access
+        </div>
+    </div>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

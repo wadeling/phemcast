@@ -87,21 +87,28 @@ class IndustryNewsAgent:
                 "processing_status": "starting",
                 "errors": [],
                 "total_tokens_used": 0,
-                "progress": {"total": len(urls), "completed": 0}
+                "progress": {"total": len(urls), "completed": 0},
+                "logs": ["🎯 Starting report generation for {} URLs".format(len(urls))],
+                "total_urls": len(urls),
+                "total_articles": 0
             }
             
             logger.info(f"Starting workflow with {len(urls)} URLs")
             
-            # Run the workflow
-            final_state = await self.graph.ainvoke(initial_state)
+            # Run the workflow without checkpointing for background processing
+            config = {"configurable": {"thread_id": f"background_{datetime.now().timestamp()}"}}
+            final_state = await self.graph.ainvoke(initial_state, config=config)
             
             return {
                 "status": final_state.get("processing_status", "completed"),
                 "errors": final_state.get("errors", []),
                 "total_articles": len(final_state.get("articles", [])),
+                "total_urls": final_state.get("total_urls", 0),
                 "report_paths": final_state.get("report_paths", {}),
                 "email_sent": final_state.get("email_sent", False),
-                "total_tokens_used": final_state.get("total_tokens_used", 0)
+                "total_tokens_used": final_state.get("total_tokens_used", 0),
+                "logs": final_state.get("logs", []),
+                "processing_time": final_state.get("processing_time", 0)
             }
             
         except Exception as e:
@@ -159,7 +166,12 @@ class IndustryNewsAgent:
                 "articles": article_objects,
                 "processing_status": "articles_scraped",
                 "errors": state.get("errors", []) + scrape_errors,
-                "progress": {"total": len(urls), "completed": len(urls)}
+                "progress": {"total": len(urls), "completed": len(urls)},
+                "logs": state.get("logs", []) + [
+                    f"✅ Scraped {len(article_objects)} articles from {len(urls)} URLs",
+                    f"📈 URL processing: 100% complete"
+                ],
+                "total_articles": len(article_objects)
             })
             
             logger.info(f"Scraped {len(article_objects)} articles from {len(urls)} URLs")
@@ -168,7 +180,8 @@ class IndustryNewsAgent:
             logger.error(f"Article scraping failed: {str(e)}")
             state.update({
                 "processing_status": "error",
-                "errors": state.get("errors", []) + [f"Scraping failed: {str(e)}"]
+                "errors": state.get("errors", []) + [f"Scraping failed: {str(e)}"],
+                "logs": state.get("logs", []) + [f"❌ Scraping error: {str(e)}"]
             })
         
         return state
@@ -185,17 +198,24 @@ class IndustryNewsAgent:
             return state
         
         try:
+            state["logs"] = state.get("logs", []) + [f"🤖 Starting AI analysis for {len(articles)} articles"]
+            
             # Import here to avoid circular dependencies
             from .tools import AIContentAnalysisTool
             
             analyzer = AIContentAnalysisTool(self.settings)
-            analyzed_articles = analyzer.run(articles)
+            # Call _run directly to avoid BaseTool.run() issues
+            analyzed_articles = analyzer._run(articles=articles)
             
             # Update articles with analysis
             state.update({
                 "articles": analyzed_articles,
                 "processing_status": "content_analyzed",
-                "total_tokens_used": state.get("total_tokens_used", 0) + len(articles) * 500
+                "total_tokens_used": state.get("total_tokens_used", 0) + len(articles) * 500,
+                "logs": state.get("logs", []) + [
+                    f"✅ AI analysis complete: {len(analyzed_articles)} articles analyzed",
+                    f"🔢 Estimated tokens used: {len(articles) * 500}"
+                ]
             })
             
             logger.info(f"Analyzed {len(analyzed_articles)} articles")
@@ -204,7 +224,8 @@ class IndustryNewsAgent:
             logger.error(f"Content analysis failed: {str(e)}")
             state.update({
                 "processing_status": "error",
-                "errors": state.get("errors", []) + [f"Analysis failed: {str(e)}"]
+                "errors": state.get("errors", []) + [f"Analysis failed: {str(e)}"],
+                "logs": state.get("logs", []) + [f"❌ AI analysis failed: {str(e)}"]
             })
         
         return state
@@ -240,8 +261,16 @@ class IndustryNewsAgent:
             # Calculate trend score
             trend_score = min(1.0, len(company_arts) / 5)  # Simple scoring
             
+            # Extract domain from first article's URL
+            domain = "unknown"
+            if company_arts and company_arts[0].url:
+                from urllib.parse import urlparse
+                parsed = urlparse(company_arts[0].url)
+                domain = parsed.netloc
+            
             insight = CompanyInsights(
                 company_name=company,
+                domain=domain,
                 article_count=len(company_arts),
                 insights=list(set(all_insights)),
                 trend_score=trend_score,
@@ -269,11 +298,16 @@ class IndustryNewsAgent:
             return state
         
         try:
+            start_time = datetime.now()
+            total_articles = len(articles)
+            
+            state["logs"] = state.get("logs", []) + [f"📝 Starting report generation for {total_articles} articles"]
+            
             report_generator = ReportGenerator(self.settings)
             
             # Add execution metadata
             report_metadata = {
-                "total_articles": len(articles),
+                "total_articles": total_articles,
                 "companies": list(company_insights.keys()),
                 "execution_date": datetime.now()
             }
@@ -282,9 +316,15 @@ class IndustryNewsAgent:
                 articles, {}
             )
             
+            processing_time = (datetime.now() - start_time).total_seconds()
             state.update({
                 "report_paths": report_paths,
-                "processing_status": "reports_generated"
+                "processing_status": "reports_generated",
+                "logs": state.get("logs", []) + [
+                    f"✅ Reports generated: {list(report_paths.keys())}",
+                    f"⏱️ Report generation time: {processing_time:.1f}s"
+                ],
+                "processing_time": processing_time
             })
             
             logger.info(f"Generated reports: {list(report_paths.keys())}")
@@ -293,7 +333,8 @@ class IndustryNewsAgent:
             logger.error(f"Report generation failed: {str(e)}")
             state.update({
                 "processing_status": "error",
-                "errors": state.get("errors", []) + [f"Report generation failed: {str(e)}"]
+                "errors": state.get("errors", []) + [f"Report generation failed: {str(e)}"],
+                "logs": state.get("logs", []) + [f"❌ Report generation failed: {str(e)}"]
             })
         
         return state
@@ -306,16 +347,20 @@ class IndustryNewsAgent:
         if not recipients:
             state["email_sent"] = False
             state["processing_status"] = "completed"
+            state["logs"] = state.get("logs", []) + ["📧 No email recipients specified - skipping email delivery"]
             return state
         
         if not report_paths:
             state.update({
                 "processing_status": "error",
-                "errors": state.get("errors", []) + ["No reports to send"]
+                "errors": state.get("errors", []) + ["No reports to send"],
+                "logs": state.get("logs", []) + ["❌ Cannot send email - no reports generated"]
             })
             return state
         
         try:
+            state["logs"] = state.get("logs", []) + [f"📧 Starting email delivery to {len(recipients)} recipients"]
+            
             email_service = EmailService(self.settings)
             
             email_results = await email_service.send_bulk_reports(
@@ -324,11 +369,16 @@ class IndustryNewsAgent:
             
             # Check if at least one email was sent successfully
             any_sent = any(email_results.values())
+            success_count = list(email_results.values()).count(True)
             
             state.update({
                 "email_sent": any_sent,
                 "email_results": email_results,
-                "processing_status": "completed"
+                "processing_status": "completed",
+                "logs": state.get("logs", []) + [
+                    f"📧 Email sending complete: {success_count}/{len(recipients)} succeeded",
+                    f"✅ Report processing completed successfully!"
+                ]
             })
             
             if not any_sent:
@@ -340,7 +390,8 @@ class IndustryNewsAgent:
             logger.error(f"Email sending failed: {str(e)}")
             state.update({
                 "processing_status": "error",
-                "errors": state.get("errors", []) + [f"Email sending failed: {str(e)}"]
+                "errors": state.get("errors", []) + [f"Email sending failed: {str(e)}"],
+                "logs": state.get("logs", []) + [f"❌ Email sending failed: {str(e)}"]
             })
         
         return state

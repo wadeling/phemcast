@@ -50,6 +50,7 @@ Create a `.env` file with the following variables:
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4
+OPENAI_BASE_URL=https://api.openai.com/v1  # Optional: for OpenAI-compatible endpoints
 
 # Email Configuration
 SMTP_SERVER=smtp.gmail.com

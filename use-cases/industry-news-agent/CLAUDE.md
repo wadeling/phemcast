@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     # LLM Configuration
     openai_api_key: str = Field(..., description="OpenAI API key")
     openai_model: str = Field(default="gpt-4", description="OpenAI model to use")
+    openai_base_url: str = Field(default="https://api.openai.com/v1", description="OpenAI API base URL for compatible endpoints")
     
     # Email Configuration
     smtp_server: str = Field(default="smtp.gmail.com", description="SMTP server")
