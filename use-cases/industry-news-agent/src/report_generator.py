@@ -114,9 +114,12 @@ class ReportGenerator:
         config = report_config or {}
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
+        # Remove duplicate articles based on URL
+        unique_articles = self._deduplicate_articles(articles)
+        
         # Group articles by company
         company_articles: Dict[str, List[Article]] = {}
-        for article in articles:
+        for article in unique_articles:
             company = article.company_name or "Unknown"
             if company not in company_articles:
                 company_articles[company] = []
@@ -128,13 +131,13 @@ class ReportGenerator:
         # Prepare data
         report_data = {
             "format_date": datetime.now().strftime("%B %d, %Y"),
-            "report_period": self._get_report_period(articles),
+            "report_period": self._get_report_period(unique_articles),
             "companies": company_articles,
             "company_insights": company_insights,
-            "total_articles": len(articles),
-            "articles": articles,
-            "industry_trends": self._extract_industry_trends(articles),
-            "key_insights": self._compile_key_insights(articles)
+            "total_articles": len(unique_articles),
+            "articles": unique_articles,
+            "industry_trends": self._extract_industry_trends(unique_articles),
+            "key_insights": self._compile_key_insights(unique_articles)
         }
         
         report_paths = {}
@@ -407,6 +410,34 @@ class ReportGenerator:
             return start_date
         else:
             return f"{start_date} to {end_date}"
+    
+    def _deduplicate_articles(self, articles: List[Article]) -> List[Article]:
+        """Remove duplicate articles based on URL."""
+        seen_urls = set()
+        unique_articles = []
+        duplicate_count = 0
+        
+        for article in articles:
+            if article.url not in seen_urls:
+                seen_urls.add(article.url)
+                unique_articles.append(article)
+            else:
+                duplicate_count += 1
+        
+        if duplicate_count > 0:
+            print(f"⚠️  Removed {duplicate_count} duplicate articles")
+            # Log the duplicate URLs for debugging
+            duplicate_urls = []
+            seen_urls_temp = set()
+            for article in articles:
+                if article.url in seen_urls_temp:
+                    duplicate_urls.append(article.url)
+                else:
+                    seen_urls_temp.add(article.url)
+            if duplicate_urls:
+                print(f"   Duplicate URLs: {list(set(duplicate_urls))}")
+        
+        return unique_articles
     
     def _generate_article_details(self, articles: List[Article]) -> str:
         """Generate detailed article list for bottom of report."""

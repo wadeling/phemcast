@@ -10,11 +10,11 @@ import random
 import traceback
 from datetime import datetime
 import hashlib
-
+import logging
 from .models import Article
 from .settings import Settings
 
-
+logger = logging.getLogger(__name__)
 class WebScrapingError(Exception):
     """Custom exception for web scraping errors."""
     pass
@@ -51,7 +51,7 @@ class AsyncWebScraper:
         self, urls: List[str], max_articles: int = 5
     ) -> Tuple[List[Article], List[str]]:
         """
-        Scrape articles from multiple blog URLs with rate limiting.
+        Scrape articles from multiple blog URLs with rate limiting and deduplication.
         
         Args:
             urls: List of blog URLs to scrape
@@ -60,8 +60,12 @@ class AsyncWebScraper:
         Returns:
             Tuple of (articles, error_messages)
         """
-        articles = []
+        all_articles = []
         errors = []
+        seen_urls = set()
+        
+        # Calculate target articles per URL to ensure we get enough unique articles
+        target_per_url = max_articles * 2  # Scrape more to account for duplicates
         
         # Process URLs with delay between requests
         for i, url in enumerate(urls):
@@ -69,12 +73,38 @@ class AsyncWebScraper:
                 await asyncio.sleep(self.settings.request_delay)
             
             try:
-                url_articles = await self._scrape_single_blog(url, max_articles)
-                articles.extend(url_articles)
+                url_articles = await self._scrape_single_blog(url, target_per_url)
+                
+                # Deduplicate articles from this URL
+                unique_articles = []
+                for article in url_articles:
+                    if article.url not in seen_urls:
+                        seen_urls.add(article.url)
+                        unique_articles.append(article)
+                        if len(unique_articles) >= max_articles:
+                            break  # Stop when we have enough unique articles
+                
+                all_articles.extend(unique_articles)
+                
+                if len(unique_articles) < len(url_articles):
+                    print(f"⚠️  Removed {len(url_articles) - len(unique_articles)} duplicate articles from {url}")
+                
             except Exception as e:
                 errors.append(f"Error scraping {url}: {str(e)}")
         
-        return articles, errors
+        # Final deduplication across all URLs
+        final_articles = []
+        final_seen_urls = set()
+        
+        for article in all_articles:
+            if article.url not in final_seen_urls:
+                final_seen_urls.add(article.url)
+                final_articles.append(article)
+        
+        if len(final_articles) < len(all_articles):
+            print(f"⚠️  Removed {len(all_articles) - len(final_articles)} cross-URL duplicate articles")
+        
+        return final_articles, errors
     
     async def _scrape_single_blog(
         self, url: str, max_articles: int
@@ -137,7 +167,7 @@ class AsyncWebScraper:
                 return []
             
             articles = []
-            for entry in feed.entries[:max_articles]:
+            for entry in feed.entries[:max_articles * 2]:  # Get more entries to account for duplicates
                 # Get content from entry
                 content = (entry.get("description", "") or 
                           entry.get("summary", "") or 
@@ -237,6 +267,7 @@ class AsyncWebScraper:
                 
                 # Find potential article links
                 article_links = self._find_article_links(soup, url)
+                logger.info(f"Found {len(article_links)} article links:{article_links}")
                 
                 for link in article_links[:max_articles]:
                     try:
@@ -313,7 +344,7 @@ class AsyncWebScraper:
                     # Filter for blog articles and avoid navigation/other pages
                     if self._is_valid_article_url(full_url, base_url):
                         links.append(link)
-                        if len(links) >= 20:  # Reasonable limit
+                        if len(links) >= 50:  # Increased limit to support deduplication
                             break
             if links:
                 break
@@ -446,7 +477,7 @@ class AsyncWebScraper:
                 soup = BeautifulSoup(html, 'html.parser')
                 
                 # Remove unwanted elements
-                for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
+                for element in soup(['script', 'style', 'nav', 'footer', 'aside']):
                     element.decompose()
                 
                 # Find article content
@@ -491,11 +522,49 @@ class AsyncWebScraper:
                 # Extract content
                 content = self._clean_text(content_element.get_text(separator=' ', strip=True))
                 
-                # Extract title
-                title = soup.find('h1')
-                if not title:
-                    title = soup.find('title')
-                title_text = title.get_text(strip=True) if title else "Untitled"
+                # Extract title - try multiple selectors for different site structures
+                title = None
+                title_selectors = [
+                    'h1',  # Most common
+                    'h2',  # Some sites use h2 for main title
+                    'h3',  # Wiz.io uses h3 for article titles
+                    'title',  # Fallback to page title
+                    '.article-title',
+                    '.post-title',
+                    '.entry-title',
+                    '[class*="title"]'
+                ]
+                
+                # Try to find the best title by looking for the most specific one
+                best_title = None
+                best_score = 0
+                logger.info(f"Trying to find the best title from {url}")
+                for selector in title_selectors:
+                    titles = soup.select(selector)
+                    logger.debug(f"Found {len(titles)} titles with selector: {selector}")
+
+                    for title_elem in titles:
+                        title_text = title_elem.get_text(strip=True)
+                        if title_text and len(title_text) > 10:  # Must be substantial
+                            # Score based on specificity and position
+                            score = 0
+                            if selector == 'h1':
+                                score += 10
+                            elif selector == 'h2':
+                                score += 8
+                            elif selector == 'h3':
+                                score += 6
+                            elif selector == 'title':
+                                score += 4
+                            else:
+                                score += 2
+                            
+                            logger.info(f"Found title: {title_text}, selector: {selector}, score: {score}, best_score: {best_score}")
+                            if score > best_score:
+                                best_score = score
+                                best_title = title_elem
+                
+                title_text = best_title.get_text(strip=True) if best_title else "Untitled"
                 
                 # Extract publish date if possible
                 date_el = soup.find('time') or soup.find('span', class_=re.compile('date', re.I))

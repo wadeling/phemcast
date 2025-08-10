@@ -1,7 +1,17 @@
 // Industry News Agent - Main JavaScript
 
+let isSubmitting = false; // Flag to prevent duplicate submissions
+
 async function handleSubmit(event) {
     event.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+        console.log('Form submission already in progress, ignoring duplicate click');
+        return;
+    }
+    
+    isSubmitting = true;
     
     const formData = new FormData();
     formData.append('urls', document.getElementById('urls').value);
@@ -45,6 +55,8 @@ async function handleSubmit(event) {
                 <strong>❌ Error:</strong> ${error.message || 'Unknown error occurred'}
             </div>
         `;
+    } finally {
+        isSubmitting = false; // Reset flag regardless of success or error
     }
 }
 
