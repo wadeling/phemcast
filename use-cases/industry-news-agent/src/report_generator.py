@@ -205,13 +205,13 @@ class ReportGenerator:
         
         # Title page
         content.append(Paragraph(
-            f"Weekly Industry News Report\n{data['format_date']}",
+            f"行业新闻周报\n{data['format_date']}",
             self.styles['CustomTitle']
         ))
         content.append(Spacer(1, 30))
         
         # Executive Summary
-        content.append(Paragraph("Executive Summary", self.styles['SectionHeader']))
+        content.append(Paragraph("执行摘要", self.styles['SectionHeader']))
         summary_text = self._generate_executive_summary(data)
         content.extend([
             Paragraph(summary_text, self.styles['BodyJustified']),
@@ -219,7 +219,7 @@ class ReportGenerator:
         ])
         
         # Industry Trends
-        content.append(Paragraph("Industry Trends", self.styles['SectionHeader']))
+        content.append(Paragraph("行业趋势", self.styles['SectionHeader']))
         for trend in data['industry_trends']:
             content.append(Paragraph(
                 f"• {trend}", 
@@ -228,7 +228,7 @@ class ReportGenerator:
         content.append(Spacer(1, 20))
         
         # Key Insights
-        content.append(Paragraph("Key Insights", self.styles['SectionHeader']))
+        content.append(Paragraph("关键见解", self.styles['SectionHeader']))
         for insight in data['key_insights']:
             content.append(Paragraph(
                 f"• {insight}",
@@ -239,7 +239,7 @@ class ReportGenerator:
         # Company Analysis
         for company, articles in data['companies'].items():
             content.append(Paragraph(
-                f"Company Analysis: {company}",
+                f"公司分析: {company}",
                 self.styles['SectionHeader']
             ))
             
@@ -247,10 +247,16 @@ class ReportGenerator:
             if company in data['company_insights']:
                 insight = data['company_insights'][company]
                 company_summary = f"""
-                <b>{company}</b> published <b>{len(articles)}</b> articles this week.
-                Key topics: {', '.join(insight['key_topics'][:5])}
-                Trend Score: {insight['trend_score']:.2f}/1.0
+                <b>{company}</b> 本周发布了 <b>{len(articles)}</b> 篇文章。
+                主要话题: {', '.join(insight['key_topics'][:5])}
+                趋势评分: {insight['trend_score']:.2f}/1.0
                 """
+                
+                # Add sentiment score if available
+                if 'sentiment_score' in insight and insight['sentiment_score'] is not None:
+                    sentiment_text = "积极" if insight['sentiment_score'] > 0 else "消极" if insight['sentiment_score'] < 0 else "中性"
+                    company_summary += f"<br/>情感倾向: {sentiment_text} ({insight['sentiment_score']:.2f})"
+                
                 content.append(Paragraph(company_summary, self.styles['BodyJustified']))
                 content.append(Spacer(1, 10))
             
@@ -263,15 +269,80 @@ class ReportGenerator:
                 
                 if article.author:
                     content.append(Paragraph(
-                        f"By {article.author}",
+                        f"作者: {article.author}",
                         self.styles['Normal']
                     ))
                 
-                if article.summary:
-                    summary = f"Summary: {article.summary[:300]}..." if len(article.summary) > 300 else article.summary
+                # Use new analysis structure if available
+                if hasattr(article, 'analysis_data') and article.analysis_data:
+                    analysis_data = self._extract_analysis_data(article)
+                    
+                    # Add metadata information
+                    if analysis_data.get('translated_title'):
+                        content.append(Paragraph(
+                            f"中文标题: {analysis_data['translated_title']}",
+                            self.styles['Normal']
+                        ))
+                    
+                    if analysis_data.get('tags'):
+                        tags_text = "标签: " + ", ".join(analysis_data['tags'][:5])
+                        content.append(Paragraph(tags_text, self.styles['Normal']))
+                    
+                    # Add one sentence summary
+                    if analysis_data.get('one_sentence_summary'):
+                        content.append(Paragraph(
+                            f"一句话总结: {analysis_data['one_sentence_summary']}",
+                            self.styles['Normal']
+                        ))
+                    
+                    # Add summary content
+                    if analysis_data.get('summary_content'):
+                        summary = f"内容摘要: {analysis_data['summary_content'][:300]}..." if len(analysis_data['summary_content']) > 300 else f"内容摘要: {analysis_data['summary_content']}"
+                        content.append(Paragraph(summary, self.styles['BodyJustified']))
+                    
+                    # Add key insights
+                    if analysis_data.get('insights'):
+                        content.append(Paragraph("关键见解:", self.styles['Normal']))
+                        for insight in analysis_data['insights'][:3]:  # Limit to top 3
+                            content.append(Paragraph(
+                                f"• {insight}",
+                                self.styles['Insight']
+                            ))
+                    
+                    # Add hierarchical structure if available
+                    if analysis_data.get('hierarchical_structure'):
+                        content.append(Paragraph("内容结构:", self.styles['Normal']))
+                        for section in analysis_data['hierarchical_structure'][:3]:  # Limit to top 3 sections
+                            section_text = f"<b>{section['heading']}</b>: {section['content'][:100]}..."
+                            if len(section['content']) > 100:
+                                section_text = f"<b>{section['heading']}</b>: {section['content'][:100]}..."
+                            else:
+                                section_text = f"<b>{section['heading']}</b>: {section['content']}"
+                            content.append(Paragraph(section_text, self.styles['BodyJustified']))
+                    
+                    # Add sentiment
+                    if analysis_data.get('sentiment'):
+                        sentiment_emoji = self._get_sentiment_emoji(analysis_data['sentiment'])
+                        content.append(Paragraph(
+                            f"情感分析: {sentiment_emoji} {analysis_data['sentiment']}",
+                            self.styles['Normal']
+                        ))
+                    
+                    # Add timestamp if available
+                    if analysis_data.get('timestamp'):
+                        formatted_timestamp = self._format_timestamp(analysis_data['timestamp'])
+                        if formatted_timestamp:
+                            content.append(Paragraph(
+                                f"分析时间: {formatted_timestamp}",
+                                self.styles['Normal']
+                            ))
+                
+                elif article.summary:
+                    # Fallback to old summary format
+                    summary = f"摘要: {article.summary[:300]}..." if len(article.summary) > 300 else f"摘要: {article.summary}"
                     content.append(Paragraph(summary, self.styles['BodyJustified']))
                 
-                article_link = f"<para><a href='{article.url}' color='blue'>Read Full Article</a></para>"
+                article_link = f"<para><a href='{article.url}' color='blue'>阅读全文</a></para>"
                 content.append(Paragraph(article_link, self.styles['Normal']))
                 content.append(Spacer(1, 15))
             
@@ -281,26 +352,26 @@ class ReportGenerator:
     
     def _get_markdown_template(self) -> str:
         """Get the detailed Markdown template."""
-        return """# Weekly Industry News Report
-*Generated on {date}*
+        return """# 行业新闻周报
+*生成时间: {date}*
 
-## Executive Summary
+## 执行摘要
 {executive_summary}
 
-## Industry Trends
+## 行业趋势
 {industry_trends}
 
-## Key Insights
+## 关键见解
 {key_insights}
 
-## Company Analysis
+## 公司分析
 {company_sections}
 
-## Detailed Articles
+## 详细文章
 {article_details}
 
 ---
-*Report generated automatically by Industry News Agent*
+*报告由行业新闻代理自动生成*
 """
     
     def _generate_company_sections(self, data: Dict) -> str:
@@ -309,13 +380,39 @@ class ReportGenerator:
         
         for company, articles in data["companies"].items():
             sections.append(f"### {company}")
-            sections.append(f"Published {len(articles)} articles this week.")
+            sections.append(f"本周发布了 {len(articles)} 篇文章。")
             
             if company in data["company_insights"]:
                 insight = data["company_insights"][company]
-                sections.append(f"Trend Score: {insight['trend_score']:.2f}/1.0")
-                sections.append(f"Key Topics: {', '.join(insight['key_topics'])}")
-                sections.append("\n" + "- " + "\n- ".join(insight['insights']) + "\n")
+                sections.append(f"**趋势评分**: {insight['trend_score']:.2f}/1.0")
+                
+                # Add sentiment score if available
+                if 'sentiment_score' in insight and insight['sentiment_score'] is not None:
+                    sentiment_emoji = "😊" if insight['sentiment_score'] > 0 else "😞" if insight['sentiment_score'] < 0 else "😐"
+                    sentiment_text = "积极" if insight['sentiment_score'] > 0.1 else "消极" if insight['sentiment_score'] < -0.1 else "中性"
+                    sections.append(f"**情感评分**: {sentiment_emoji} {sentiment_text} ({insight['sentiment_score']:.2f})")
+                
+                sections.append(f"**主要话题**: {', '.join(insight['key_topics'])}")
+                
+                if insight['insights']:
+                    sections.append("**关键见解**:")
+                    # Filter insights by quality and limit to top 5
+                    quality_insights = [insight_text for insight_text in insight['insights'] if len(insight_text) > 10]
+                    sections.append("\n".join(f"- {insight_text}" for insight_text in quality_insights[:5]))
+                
+                # Add article-level insights if available
+                article_insights = []
+                for article in articles:
+                    if hasattr(article, 'analysis_data') and article.analysis_data:
+                        analysis_data = self._extract_analysis_data(article)
+                        if analysis_data.get('one_sentence_summary'):
+                            article_insights.append(f"• {analysis_data['one_sentence_summary']}")
+                
+                if article_insights:
+                    sections.append("**文章要点**:")
+                    sections.append("\n".join(article_insights[:3]))  # Top 3 article insights
+                
+            sections.append("")
         
         return "\n\n".join(sections)
     
@@ -327,12 +424,39 @@ class ReportGenerator:
             # Extract topics and insights from articles
             all_topics = []
             all_insights = []
+            all_sentiments = []
             
             for article in articles:
-                if article.tags:
-                    all_topics.extend(article.tags)
-                if article.key_insights:
-                    all_insights.extend(article.key_insights)
+                # Try to use new analysis structure first
+                if hasattr(article, 'analysis_data') and article.analysis_data:
+                    analysis_data = self._extract_analysis_data(article)
+                    
+                    # Extract topics from new structure - prioritize 'topics' field
+                    if analysis_data.get('topics'):
+                        all_topics.extend(analysis_data['topics'])
+                    elif analysis_data.get('tags'):
+                        all_topics.extend(analysis_data['tags'])
+                    
+                    # Extract insights from new structure
+                    if analysis_data.get('insights'):
+                        all_insights.extend(analysis_data['insights'])
+                    
+                    # Extract sentiment and convert to score
+                    if analysis_data.get('sentiment'):
+                        sentiment = analysis_data['sentiment']
+                        if sentiment == 'positive':
+                            all_sentiments.append(1.0)
+                        elif sentiment == 'negative':
+                            all_sentiments.append(-1.0)
+                        else:
+                            all_sentiments.append(0.0)
+                
+                # Fallback to old structure
+                else:
+                    if article.tags:
+                        all_topics.extend(article.tags)
+                    if article.key_insights:
+                        all_insights.extend(article.key_insights)
             
             # Calculate trend score based on recency and content
             trend_score = 0.5  # Default score
@@ -340,12 +464,22 @@ class ReportGenerator:
                 recent_articles = len([a for a in articles if a.publish_date])
                 trend_score = min(1.0, recent_articles / max(len(articles), 1))
             
+            # Calculate average sentiment score
+            sentiment_score = 0.0
+            if all_sentiments:
+                sentiment_score = sum(all_sentiments) / len(all_sentiments)
+            
+            # Get unique topics and insights, limit to reasonable numbers
+            unique_topics = list(set(all_topics))[:8]  # Top 8 topics
+            unique_insights = list(set(all_insights))[:10]  # Top 10 insights
+            
             insights[company] = {
                 "company_name": company,
                 "article_count": len(articles),
-                "key_topics": list(set(all_topics))[:5],
-                "insights": all_insights,
-                "trend_score": trend_score
+                "key_topics": unique_topics,
+                "insights": unique_insights,
+                "trend_score": trend_score,
+                "sentiment_score": sentiment_score
             }
         
         return insights
@@ -357,14 +491,30 @@ class ReportGenerator:
         # Combine all topics from all articles
         all_topics = []
         for article in articles:
-            if article.tags:
-                all_topics.extend(article.tags)
+            # Try to use new analysis structure first
+            if hasattr(article, 'analysis_data') and article.analysis_data:
+                analysis_data = self._extract_analysis_data(article)
+                
+                # Extract topics from new structure - prioritize 'topics' field
+                if analysis_data.get('topics'):
+                    all_topics.extend(analysis_data['topics'])
+                elif analysis_data.get('tags'):
+                    all_topics.extend(analysis_data['tags'])
+            else:
+                # Fallback to old structure
+                if article.tags:
+                    all_topics.extend(article.tags)
         
         # Get top recurring trends
         from collections import Counter
         topic_counts = Counter(all_topics)
-        trends = [f"{topic} (mentioned {count} times)" 
-                 for topic, count in topic_counts.most_common(8)]
+        
+        # Filter out very short topics and get top trends
+        meaningful_topics = [(topic, count) for topic, count in topic_counts.most_common(15) 
+                           if len(topic) > 1]  # Filter out single character topics
+        
+        trends = [f"{topic} (提及 {count} 次)" 
+                 for topic, count in meaningful_topics[:10]]  # Top 10 trends
         
         return trends
     
@@ -373,23 +523,73 @@ class ReportGenerator:
         insights = []
         
         for article in articles:
-            if article.key_insights:
-                insights.extend(article.key_insights[:3])  # Top 3 insights per article
+            # Try to use new analysis structure first
+            if hasattr(article, 'analysis_data') and article.analysis_data:
+                analysis_data = self._extract_analysis_data(article)
+                
+                # Extract insights from new structure
+                if analysis_data.get('insights'):
+                    # Filter out very short insights and add top insights
+                    meaningful_insights = [insight for insight in analysis_data['insights'] 
+                                        if len(insight) > 5]  # Filter out very short insights
+                    insights.extend(meaningful_insights[:3])  # Top 3 insights per article
+            else:
+                # Fallback to old structure
+                if article.key_insights:
+                    meaningful_insights = [insight for insight in article.key_insights 
+                                        if len(insight) > 5]
+                    insights.extend(meaningful_insights[:3])  # Top 3 insights per article
         
-        # Remove duplicates and limit to top 10
-        unique_insights = list(set(insights))[:10]
-        return unique_insights
+        # Remove duplicates, filter by quality, and limit to top 12
+        unique_insights = []
+        seen_insights = set()
+        
+        for insight in insights:
+            # Normalize insight for deduplication
+            normalized = insight.strip().lower()
+            if normalized not in seen_insights and len(insight) > 10:  # Minimum quality threshold
+                seen_insights.add(normalized)
+                unique_insights.append(insight)
+        
+        return unique_insights[:12]  # Top 12 insights
     
     def _generate_executive_summary(self, data: Dict) -> str:
         """Generate executive summary text."""
         total_articles = data["total_articles"]
         companies = len(data["companies"])
         
+        # Extract top trends and insights for summary
+        top_trends = data["industry_trends"][:3] if data["industry_trends"] else []
+        top_insights = data["key_insights"][:3] if data["key_insights"] else []
+        
+        # Calculate overall sentiment
+        overall_sentiment = "中性"
+        sentiment_scores = []
+        for company_insight in data["company_insights"].values():
+            if company_insight.get('sentiment_score') is not None:
+                sentiment_scores.append(company_insight['sentiment_score'])
+        
+        if sentiment_scores:
+            avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
+            if avg_sentiment > 0.1:
+                overall_sentiment = "积极"
+            elif avg_sentiment < -0.1:
+                overall_sentiment = "消极"
+        
         summary = f"""
-        This week, we analyzed {total_articles} articles from {companies} different companies across the industry. 
-        The report reveals emerging trends in technology and business innovation. Key findings include significant 
-        developments in AI integration, cloud computing advancements, and market expansion strategies. 
-        Companies showed increased focus on customer experience optimization and digital transformation initiatives."""
+        本周，我们分析了来自 {companies} 家不同公司的 {total_articles} 篇文章。
+        报告揭示了技术和商业创新方面的新兴趋势，整体情感倾向为{overall_sentiment}。
+        """
+        
+        if top_trends:
+            trends_text = "、".join([trend.split(" (")[0] for trend in top_trends])
+            summary += f"主要趋势包括：{trends_text}。"
+        
+        if top_insights:
+            insights_text = "、".join([insight[:20] + "..." if len(insight) > 20 else insight for insight in top_insights])
+            summary += f"关键发现包括：{insights_text}"
+        
+        summary += "各公司更加注重客户体验优化和数字化转型计划。"
         
         return summary.strip()
     
@@ -448,8 +648,130 @@ class ReportGenerator:
             details.append(f"**{article.company_name}** - *{article.author or 'Unknown Author'}*")
             if article.publish_date:
                 details.append(f"Published: {article.publish_date.strftime('%Y-%m-%d')}")
-            if article.summary:
-                details.append(article.summary)
+            
+            # Use new analysis structure if available
+            if hasattr(article, 'analysis_data') and article.analysis_data:
+                analysis_data = self._extract_analysis_data(article)
+                
+                # Add metadata information
+                if analysis_data.get('translated_title'):
+                    details.append(f"**中文标题**: {analysis_data['translated_title']}")
+                
+                if analysis_data.get('tags'):
+                    tags_text = ", ".join(analysis_data['tags'][:5])
+                    details.append(f"**标签**: {tags_text}")
+                
+                # Add one sentence summary
+                if analysis_data.get('one_sentence_summary'):
+                    details.append(f"**一句话总结**: {analysis_data['one_sentence_summary']}")
+                
+                # Add summary content
+                if analysis_data.get('summary_content'):
+                    details.append(f"**内容摘要**: {analysis_data['summary_content']}")
+                
+                # Add key insights
+                if analysis_data.get('insights'):
+                    insights_text = "\n".join(f"- {insight}" for insight in analysis_data['insights'])
+                    details.append(f"**关键见解**:\n{insights_text}")
+                
+                # Add topics
+                if analysis_data.get('topics'):
+                    topics_text = ", ".join(analysis_data['topics'][:5])
+                    details.append(f"**主要话题**: {topics_text}")
+                
+                # Add hierarchical structure if available
+                if analysis_data.get('hierarchical_structure'):
+                    details.append("**内容结构**:")
+                    for section in analysis_data['hierarchical_structure']:
+                        details.append(f"  - **{section['heading']}**: {section['content']}")
+                
+                # Add sentiment
+                if analysis_data.get('sentiment'):
+                    sentiment_emoji = self._get_sentiment_emoji(analysis_data['sentiment'])
+                    details.append(f"**情感分析**: {sentiment_emoji} {analysis_data['sentiment']}")
+                
+                # Add timestamp if available
+                if analysis_data.get('timestamp'):
+                    formatted_timestamp = self._format_timestamp(analysis_data['timestamp'])
+                    if formatted_timestamp:
+                        details.append(f"**分析时间**: {formatted_timestamp}")
+            
+            elif article.summary:
+                # Fallback to old summary format
+                details.append(f"**摘要**: {article.summary}")
+                if article.key_insights:
+                    insights_text = "\n".join(f"- {insight}" for insight in article.key_insights)
+                    details.append(f"**关键见解**:\n{insights_text}")
+            
             details.append("")
         
         return "\n".join(details)
+    
+    def _extract_analysis_data(self, article: Article) -> Dict:
+        """Extract and validate analysis data from article."""
+        if not hasattr(article, 'analysis_data') or not article.analysis_data:
+            return {}
+        
+        analysis = article.analysis_data
+        
+        # Validate and extract metadata
+        metadata = analysis.get('metadata', {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        
+        # Extract and validate fields
+        result = {
+            'original_title': metadata.get('original_title', article.title),
+            'translated_title': metadata.get('translated_title', ''),
+            'tags': metadata.get('tags', []) if isinstance(metadata.get('tags'), list) else [],
+            'one_sentence_summary': analysis.get('one_sentence_summary', ''),
+            'summary_content': analysis.get('summary_content', ''),
+            'insights': analysis.get('insights', []) if isinstance(analysis.get('insights'), list) else [],
+            'topics': analysis.get('topics', []) if isinstance(analysis.get('topics'), list) else [],
+            'sentiment': analysis.get('sentiment', 'neutral'),
+            'hierarchical_structure': analysis.get('hierarchical_structure', []) if isinstance(analysis.get('hierarchical_structure'), list) else [],
+            'timestamp': analysis.get('timestamp', '')
+        }
+        
+        # Clean and validate data
+        result['tags'] = [tag for tag in result['tags'] if isinstance(tag, str) and len(tag.strip()) > 0]
+        result['insights'] = [insight for insight in result['insights'] if isinstance(insight, str) and len(insight.strip()) > 5]
+        result['topics'] = [topic for topic in result['topics'] if isinstance(topic, str) and len(topic.strip()) > 1]
+        
+        # Validate hierarchical structure
+        if result['hierarchical_structure']:
+            valid_structure = []
+            for section in result['hierarchical_structure']:
+                if isinstance(section, dict) and 'heading' in section and 'content' in section:
+                    if isinstance(section['heading'], str) and isinstance(section['content'], str):
+                        if len(section['heading'].strip()) > 0 and len(section['content'].strip()) > 0:
+                            valid_structure.append({
+                                'heading': section['heading'].strip(),
+                                'content': section['content'].strip()
+                            })
+            result['hierarchical_structure'] = valid_structure
+        
+        return result
+    
+    def _get_sentiment_emoji(self, sentiment: str) -> str:
+        """Get emoji for sentiment."""
+        sentiment_map = {
+            'positive': '😊',
+            'negative': '😞',
+            'neutral': '😐'
+        }
+        return sentiment_map.get(sentiment.lower(), '😐')
+    
+    def _format_timestamp(self, timestamp: str) -> str:
+        """Format timestamp for display."""
+        if not timestamp:
+            return ''
+        
+        try:
+            # Try to parse ISO format timestamp
+            from datetime import datetime
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            return dt.strftime('%Y-%m-%d %H:%M:%S')
+        except:
+            # Return as-is if parsing fails
+            return timestamp

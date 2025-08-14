@@ -15,6 +15,9 @@ class Settings(BaseSettings):
         "extra": "ignore",
     }
 
+    # Logging Configuration
+    log_level: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
+
     # LLM Configuration
     openai_api_key: str = Field(..., description="OpenAI API key for content analysis")
     openai_model: str = Field(

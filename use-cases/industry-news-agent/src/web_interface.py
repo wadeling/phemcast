@@ -6,9 +6,14 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
 
-# Configure logging
+from .settings import Settings, load_settings
+
+# Load settings first to get log level
+settings = load_settings()
+
+# Configure logging with dynamic level from settings
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, settings.log_level.upper()),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -20,7 +25,6 @@ from pydantic import BaseModel, Field, field_validator
 from pathlib import Path
 import uvicorn
 
-from .settings import Settings, load_settings
 from .agent import create_agent
 from .models import TaskStatus
 
@@ -80,7 +84,7 @@ if js_dir.exists():
     app.mount("/static/js", StaticFiles(directory=str(js_dir)), name="js")
 
 # Global settings
-settings = load_settings()
+# settings = load_settings() # This line is now redundant as settings is loaded globally
 
 
 @app.get("/")

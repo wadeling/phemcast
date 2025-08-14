@@ -1,5 +1,6 @@
 """LangGraph tools for web scraping, AI analysis, and report generation."""
 import asyncio
+import os
 from typing import List, Dict, Optional
 import json
 from datetime import datetime
@@ -210,32 +211,51 @@ class AIContentAnalysisTool(BaseTool):
     
     async def _analyze_article(self, article: Article, config: AnalysisConfig) -> Article:
         """Analyze a single article using AI."""
+        # Read prompt from local file
+        prompt_file_path = os.path.join(os.path.dirname(__file__), "prompt.txt")
+        try:
+            with open(prompt_file_path, 'r', encoding='utf-8') as f:
+                prompt_content = f.read()
+        except FileNotFoundError:
+            # Fallback to default prompt if file not found
+            prompt_content = """
+            作为行业新闻专家内容分析师，请阅读提供的文章标题 `{title}` 和内容 `{content}`，并严格按以下步骤执行分析：
+1.  **提取元数据**：
+    *   `original_title`：输出提供的原始文章标题 `{title}`。
+    *   `translated_title` (如适用)：如原标题非中文，生成其简体中文翻译。
+    *   `tags`：根据文章内容生成 3-5 个中文关键词（领域、学科或专有名词），如：`["人工智能", "医疗技术", "政策法规"]`。
+2.  **生成一句话总结** (`one_sentence_summary`)：用一句中文概括文章核心，不超过 30 字。
+3.  **撰写内容摘要** (`summary_content`)：用中文简洁、专业地总结全文（≤150字），聚焦**技术见解、创新点和业务/商业含义**。
+4.  **列出关键见解** (`insights`)：提取 3-5 个核心中文见解（JSON 字符串数组），强调创新、技术突破或商业影响，格式如：`["见解1", "见解2", ...]`。
+5.  **识别主要话题** (`topics`)：提取文章中涉及的主要中文**主题、技术、公司名、人名**等（JSON 字符串数组），如：`["5G", "特斯拉", "张某某"]`。
+6.  **执行情感分析** (`sentiment`)：基于文章整体内容判断其基调（`"positive"`, `"negative"`, `"neutral"`）。
+7.  **总结主要内容** (`hierarchical_structure`)：按文章本身的逻辑结构（标题/小标题），用 JSON 数组组织要点。每个元素代表一个主要部分（使用原文标题结构或总结概括），元素是包含 `heading` 和 `content` 键的对象。例如：
+[{{ "heading": "背景介绍", "content": "该部分主要内容总结..." }},{{ "heading": "技术突破", "content": "描述的核心技术创新点..." }},{{ "heading": "市场影响", "content": "分析对行业或市场的影响..." }}]
+
+**请严格按照以下 JSON 结构输出分析结果：**：
+{{
+    "metadata": {{
+        "original_title": "{title}",
+        "translated_title": "中文标题文本 (string, 英文原文时可选)",
+        "tags": ["标签1", "标签2", ...] // Array of strings
+    }},
+    "one_sentence_summary": "一句话总结文本 (string)",
+    "summary_content": "摘要内容文本 (string, <=150字)",
+    "insights": ["见解1", "见解2", ...], // Array of strings
+    "topics": ["话题1", "话题2", ...], // Array of strings
+    "sentiment": "positive/negative/neutral", // String
+    "hierarchical_structure": [ // Array of objects
+        {{
+            "heading": "部分标题/类型描述 (string)",
+            "content": "该部分内容要点总结 (string)"
+        }}
+        // ... 可以添加更多部分
+    ],
+    "timestamp": "分析完成时间戳 (ISO8601格式)" // Optional but recommended for tracking
+}}
+"""
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an expert content analyst for industry news.
-            Analyze the provided blog article and provide:
-            1. A concise summary
-            2. 3-5 key insights or takeaways
-            3. Main topics/names mentioned
-            4. Sentiment analysis
-            
-            Be concise and professional. Focus on technical insights, innovations, and business implications."""),
-            ("human", """
-            Title: {title}
-            Content: {content}
-            
-            Please provide:
-            1. A {summary_length} summary (max 150 words)
-            2. Key insights as a JSON array of strings
-            3. Main topics as a JSON array of strings
-            
-            Response format:
-            {{
-                "summary": "summary text",
-                "insights": ["insight1", "insight2", ...],
-                "topics": ["topic1", "topic2", ...],
-                "sentiment": "positive/negative/neutral"
-            }}
-            """)
+            ("system", prompt_content)
         ])
         
         chain = prompt | self.llm
@@ -248,14 +268,35 @@ class AIContentAnalysisTool(BaseTool):
         
         try:
             analysis = json.loads(result.content)
-            article.summary = analysis.get("summary", "")
-            article.key_insights = analysis.get("insights", [])
-            article.tags = analysis.get("topics", [])
+            
+            # Store the complete analysis data for new report format
+            article.analysis_data = analysis
+            
+            # Extract data for backward compatibility
+            if 'summary_content' in analysis:
+                article.summary = analysis['summary_content']
+            elif 'summary' in analysis:
+                article.summary = analysis['summary']
+            else:
+                article.summary = ""
+            
+            if 'insights' in analysis:
+                article.key_insights = analysis['insights']
+            else:
+                article.key_insights = []
+            
+            if 'topics' in analysis:
+                article.tags = analysis['topics']
+            elif 'metadata' in analysis and 'tags' in analysis['metadata']:
+                article.tags = analysis['metadata']['tags']
+            else:
+                article.tags = []
             
         except json.JSONDecodeError:
             # Fallback if JSON parsing fails
             article.summary = result.content.strip()
             article.key_insights = ["Detailed analysis available in summary"]
+            article.analysis_data = None
         
         return article
 

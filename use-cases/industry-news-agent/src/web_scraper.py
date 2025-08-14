@@ -271,8 +271,8 @@ class AsyncWebScraper:
                 
                 for link in article_links[:max_articles]:
                     try:
-                        article_url = urljoin(url, link.get('href', ''))
-                        article_data = await self._scrape_single_article(article_url)
+                        # article_url = urljoin(url, link.get('href', ''))
+                        article_data = await self._scrape_single_article(link)
                         
                         if article_data:
                             article = Article(
@@ -284,6 +284,7 @@ class AsyncWebScraper:
                                 publish_date=article_data.get('publish_date'),
                                 word_count=len(article_data['content'].split())
                             )
+                            logger.debug(f"Found article: {article.title}, content: {article.content}")
                             articles.append(article)
                             
                     except Exception:
@@ -343,7 +344,7 @@ class AsyncWebScraper:
                     
                     # Filter for blog articles and avoid navigation/other pages
                     if self._is_valid_article_url(full_url, base_url):
-                        links.append(link)
+                        links.append(full_url)
                         if len(links) >= 50:  # Increased limit to support deduplication
                             break
             if links:
@@ -510,17 +511,20 @@ class AsyncWebScraper:
                     element = soup.select_one(selector)
                     if element and len(element.get_text(strip=True)) > 50:
                         content_element = element
+                        # logger.debug(f"Found content element: {content_element}")
                         break
                 
                 # If no specific content found, try to find the largest text block
                 if not content_element:
                     content_element = self._find_largest_text_block(soup)
+                    logger.debug(f"Found largest text block: {content_element}")
                 
                 if not content_element:
                     return None
                 
                 # Extract content
                 content = self._clean_text(content_element.get_text(separator=' ', strip=True))
+                logger.debug(f"after clean text content: {content}")
                 
                 # Extract title - try multiple selectors for different site structures
                 title = None
@@ -559,7 +563,7 @@ class AsyncWebScraper:
                             else:
                                 score += 2
                             
-                            logger.info(f"Found title: {title_text}, selector: {selector}, score: {score}, best_score: {best_score}")
+                            # logger.debug(f"Found title: {title_text}, selector: {selector}, score: {score}, best_score: {best_score}")
                             if score > best_score:
                                 best_score = score
                                 best_title = title_elem

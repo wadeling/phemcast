@@ -20,6 +20,7 @@ class Article(BaseModel):
     word_count: int = Field(default=0)
     language: str = Field(default="en")
     tags: List[str] = Field(default_factory=list)
+    analysis_data: Optional[Dict[str, Any]] = Field(default=None, description="AI analysis results with enhanced structure")
     
     @validator("url")
     def validate_url(cls, v):
@@ -76,7 +77,7 @@ class AnalysisConfig(BaseModel):
     extract_quotes: bool = Field(default=True)
     trend_analysis: bool = Field(default=True)
     generate_insights: bool = Field(default=True)
-    max_tokens_per_summary: int = Field(default=500, ge=50, le=2000)
+    max_tokens_per_summary: int = Field(default=10000, ge=50, le=20000)
 
 
 class ReportConfig(BaseModel):
