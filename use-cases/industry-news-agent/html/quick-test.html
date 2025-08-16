@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Test - Industry News Agent</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .quick-test {
+            background: #e8f4f8;
+            border: 2px solid #2c5aa0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .quick-test h2 {
+            color: #2c5aa0;
+            margin-top: 0;
+        }
+        
+        .preset-urls {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        
+        .preset-url {
+            background: #2c5aa0;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .preset-url:hover {
+            background: #1e3d6f;
+            transform: translateY(-2px);
+        }
+        
+        .stats {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .stats h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Quick Test - Industry News Agent</h1>
+        
+        <div class="quick-test">
+            <h2>⚡ Quick Start Guide</h2>
+            <p>This page is optimized for quick testing with minimal configuration:</p>
+            <ul>
+                <li><strong>Default:</strong> 1 article from OpenAI blog</li>
+                <li><strong>Fast Processing:</strong> Minimal content to analyze</li>
+                <li><strong>Quick Results:</strong> Perfect for testing the system</li>
+            </ul>
+        </div>
+        
+        <form id="reportForm">
+            <div class="form-group">
+                <label for="urls">Company Blog URLs:</label>
+                <textarea id="urls" name="urls" placeholder="Enter blog URLs (one per line)" required>https://blog.openai.com</textarea>
+                <small class="form-hint">💡 Start with one URL for quick testing</small>
+                
+                <div class="preset-urls">
+                    <span class="preset-url" onclick="setUrl('https://blog.openai.com')">OpenAI Blog</span>
+                    <span class="preset-url" onclick="setUrl('https://blog.microsoft.com')">Microsoft Blog</span>
+                    <span class="preset-url" onclick="setUrl('https://engineering.linkedin.com')">LinkedIn Engineering</span>
+                    <span class="preset-url" onclick="setUrl('https://blog.google')">Google Blog</span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email for Report Delivery (optional):</label>
+                <input type="email" id="email" name="email" placeholder="your.email@company.com">
+                <small class="form-hint">📧 Reports will be sent to this email address</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="max_articles">Maximum Articles per Blog:</label>
+                <select id="max_articles" name="max_articles">
+                    <option value="1" selected>1 article (Quick test - Recommended)</option>
+                    <option value="3">3 articles</option>
+                    <option value="5">5 articles</option>
+                    <option value="10">10 articles</option>
+                </select>
+                <small class="form-hint">🚀 Start with 1 article for faster processing and testing</small>
+            </div>
+            
+            <button type="submit">🚀 Generate Quick Report</button>
+            
+            <div class="stats">
+                <h3>📊 Expected Results</h3>
+                <div class="stat-item">
+                    <span>Processing Time:</span>
+                    <span><strong>~2-5 minutes</strong></span>
+                </div>
+                <div class="stat-item">
+                    <span>Articles to Analyze:</span>
+                    <span><strong id="article-count">1</strong></span>
+                </div>
+                <div class="stat-item">
+                    <span>Report Formats:</span>
+                    <span><strong>PDF + Markdown</strong></span>
+                </div>
+                <div class="stat-item">
+                    <span>AI Analysis:</span>
+                    <span><strong>Summary + Insights</strong></span>
+                </div>
+            </div>
+            
+            <div id="loading">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <strong>Processing...</strong>
+                    <div id="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 0%" id="progress-fill"></div>
+                        </div>
+                    </div>
+                    <small id="current-step">Initializing...</small>
+                    <small class="process-steps">🔄 Scraping articles... 📊 Analyzing content... 📝 Generating reports...</small>
+                    <div id="process-log" class="log-output"></div>
+                </div>
+            </div>
+            
+            <div id="result"></div>
+        </form>
+        
+        <div class="features">
+            <strong>Quick Test Features:</strong> Single article analysis • Fast processing • Minimal configuration • Perfect for testing<br>
+            <strong>Next Steps:</strong> After successful test, try with more articles or multiple blogs<br>
+            <strong>API:</strong> POST to /api/generate-report for programmatic access
+        </div>
+    </div>
+    
+    <script src="/static/js/quick-test.js"></script>
+</body>
+</html>
