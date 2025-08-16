@@ -23,6 +23,7 @@ python-dotenv>=1.0.0
 # Email functionality
 aiosmtplib>=3.0.0
 email-validator>=2.1.0
+tencentcloud-sdk-python>=3.0.0
 
 # Report generation
 reportlab>=4.0.0

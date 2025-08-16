@@ -10,11 +10,24 @@ from langchain_core.prompts import ChatPromptTemplate
 from tempfile import mkdtemp
 from pathlib import Path
 
-from .settings import Settings
+from .settings import Settings, load_settings
 from .models import Article, CompanyInsights, AnalysisConfig
 from .web_scraper import AsyncWebScraper
 from .report_generator import ReportGenerator
+from .logging_config import setup_logging, get_logger
 
+# Load settings first to get log level
+settings = load_settings()
+
+# Setup logging with file line numbers enabled
+setup_logging(
+    log_level=settings.log_level,
+    log_file=settings.log_file,
+    show_file_line=settings.show_file_line,
+    show_function=settings.show_function
+)
+
+logger = get_logger(__name__)
 
 def initialize_tools(settings: Settings):
     """Initialize and configure all tools with settings."""
@@ -23,7 +36,6 @@ def initialize_tools(settings: Settings):
         AIContentAnalysisTool(settings),
         ReportGenerationTool(settings)
     ]
-
 
 class WebScrapingTool(BaseTool):
     """Tool for scraping articles from blog URLs."""
@@ -63,7 +75,8 @@ class WebScrapingTool(BaseTool):
             # Extract arguments from different possible formats
             urls = None
             max_articles = 5
-            
+            logger.info(f"WebScrapingTool._run: args: {args}, kwargs: {kwargs}")
+
             # Case 1: Arguments passed as positional args
             if len(args) >= 1:
                 urls = args[0]
@@ -382,6 +395,7 @@ class ReportGenerationTool(BaseTool):
     async def _arun(self, articles: List[Article], email_recipients: List[str] = None, report_config: Dict = None) -> Dict:
         """Async report generation."""
         try:
+            logger.info(f"tools for Generating reports for {len(articles)} articles")
             # Generate reports
             report_gen = ReportGenerator(self.settings)
             report_paths = await report_gen.generate_all_reports(
@@ -395,12 +409,16 @@ class ReportGenerationTool(BaseTool):
                 "errors": []
             }
             
+            logger.info(f"email_recipients: {email_recipients}")
+
             # Send email if recipients provided
-            if email_recipients and "email_service" in self.settings.items():
+            if email_recipients:
                 try:
                     from .email_service import EmailService
                     email_service = EmailService(self.settings)
                     
+                    logger.info(f"Sending email to {email_recipients}")
+
                     for recipient in email_recipients:
                         sent = await email_service.send_report_email(
                             recipient, report_paths
@@ -408,6 +426,7 @@ class ReportGenerationTool(BaseTool):
                         if sent:
                             result["email_sent"] = True
                         else:
+                            logger.error(f"Failed to send email to {recipient}")
                             result["errors"].append(f"Failed to send email to {recipient}")
                             
                 except Exception as e:

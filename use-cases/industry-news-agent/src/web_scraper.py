@@ -524,7 +524,7 @@ class AsyncWebScraper:
                 
                 # Extract content
                 content = self._clean_text(content_element.get_text(separator=' ', strip=True))
-                logger.debug(f"after clean text content: {content}")
+                # logger.debug(f"after clean text content: {content}")
                 
                 # Extract title - try multiple selectors for different site structures
                 title = None

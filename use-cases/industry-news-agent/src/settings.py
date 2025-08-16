@@ -1,8 +1,13 @@
 """Configuration management for industry news agent."""
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
-from typing import List
+from typing import List, Optional
 from pathlib import Path
+
+from .logging_config import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class Settings(BaseSettings):
@@ -17,6 +22,9 @@ class Settings(BaseSettings):
 
     # Logging Configuration
     log_level: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
+    log_file: Optional[str] = Field(default=None, description="Log file path (optional, console only if not set)")
+    show_file_line: bool = Field(default=False, description="Show file name and line number in log messages")
+    show_function: bool = Field(default=False, description="Show function name in log messages")
 
     # LLM Configuration
     openai_api_key: str = Field(..., description="OpenAI API key for content analysis")
@@ -31,11 +39,42 @@ class Settings(BaseSettings):
     )
 
     # SMTP Configuration
-    smtp_server: str = Field(default="smtp.gmail.com")
-    smtp_port: int = Field(default=587)
-    email_username: str = Field(..., description="Email username")
-    email_password: str = Field(..., description="Email password or app password")
-    email_from_name: str = Field(default="Industry News Agent", description="Email sender name")
+    email_username: Optional[str] = None
+    email_password: Optional[str] = None
+    email_from_name: str = "Industry News Agent"
+    smtp_server: Optional[str] = None
+    smtp_port: Optional[int] = None
+
+    # Tencent Cloud SES Configuration
+    tencent_cloud_secret_id: str = Field(..., description="Tencent Cloud API Secret ID")
+    tencent_cloud_secret_key: str = Field(..., description="Tencent Cloud API Secret Key")
+    tencent_cloud_region: str = Field(
+        default="ap-guangzhou",
+        description="Tencent Cloud service region for SES"
+    )
+    tencent_from_email: str = Field(..., description="Tencent Cloud SES sender email address")
+    tencent_template_id: Optional[int] = Field(default=None, description="Tencent Cloud SES template ID")
+    tencent_use_template: bool = Field(default=True, description="Whether to use template for sending emails")
+    
+    @validator("tencent_cloud_region")
+    def validate_tencent_region(cls, v):
+        """Validate Tencent Cloud region."""
+        valid_regions = [
+            "ap-guangzhou",    # 广州
+            "ap-shanghai",     # 上海
+            "ap-beijing",      # 北京
+            "ap-hongkong",     # 香港
+            "ap-singapore",    # 新加坡
+            "ap-seoul",        # 首尔
+            "ap-tokyo",        # 东京
+            "ap-mumbai",       # 孟买
+            "eu-frankfurt",    # 法兰克福
+            "na-ashburn",      # 弗吉尼亚
+            "na-siliconvalley" # 硅谷
+        ]
+        if v not in valid_regions:
+            raise ValueError(f"Invalid Tencent Cloud region: {v}. Valid regions: {', '.join(valid_regions)}")
+        return v
 
     # Web Scraping
     request_delay: float = Field(default=2.0, description="Delay between requests (seconds)")
@@ -80,6 +119,12 @@ def load_settings() -> Settings:
         error_msg = f"Failed to load settings: {e}"
         if "api_key" in str(e).lower():
             error_msg += "\nMake sure to set OPENAI_API_KEY in your .env file"
-        if "email" in str(e).lower():
+        if "tencent_cloud_secret" in str(e).lower():
+            error_msg += "\nMake sure to set TENCENT_CLOUD_SECRET_ID and TENCENT_CLOUD_SECRET_KEY in your .env file"
+        if "tencent_from_email" in str(e).lower():
+            error_msg += "\nMake sure to set TENCENT_FROM_EMAIL in your .env file"
+        if "email" in str(e).lower() and "tencent" not in str(e).lower():
             error_msg += "\nMake sure to set EMAIL_USERNAME and EMAIL_PASSWORD in your .env file"
+        
+        logger.error(error_msg)
         raise ValueError(error_msg) from e

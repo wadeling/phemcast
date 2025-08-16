@@ -113,7 +113,8 @@ class ProcessingState(TypedDict, total=False):
     analysis_errors: List[Dict[str, str]]
     
     # Report addresses
-    report_paths: Dict[str, str]  # {"markdown": "path/md", "pdf": "path/pdf"}
+    report_path_md: str = ""  # Path to markdown report
+    report_path_pdf: str = ""  # Path to PDF report
     
     # Email delivery
     email_sent: bool
@@ -157,15 +158,26 @@ class TaskStatus(BaseModel):
 class AgentState(TypedDict, total=False):
     """LangGraph workflow state - optimized for workflow execution."""
     
+    # Input configuration
     urls: List[str]
+    max_articles: int
+    email_recipients: List[str]
+    
+    # Processing state
     articles: List[Article]
     company_insights: Dict[str, CompanyInsights]
     weekly_summary: str
     report_path_md: Optional[str]
     report_path_pdf: Optional[str]
-    email_recipients: List[str]
     task_id: str
     processing_status: str
     progress: Dict[str, int]
     errors: List[str]
     total_tokens_used: int
+    
+    # Additional fields that may be set during workflow
+    logs: List[str]
+    total_urls: int
+    total_articles: int
+    email_sent: bool
+    processing_time: float

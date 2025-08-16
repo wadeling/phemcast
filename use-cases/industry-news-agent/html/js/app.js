@@ -2,6 +2,22 @@
 
 let isSubmitting = false; // Flag to prevent duplicate submissions
 
+// Initialize form with default values
+function initializeForm() {
+    const urlsTextarea = document.getElementById('urls');
+    const maxArticlesSelect = document.getElementById('max_articles');
+    
+    // Set default URL if textarea is empty
+    if (!urlsTextarea.value.trim()) {
+        urlsTextarea.value = 'https://blog.openai.com';
+    }
+    
+    // Set default max articles to 1
+    maxArticlesSelect.value = '1';
+    
+    console.log('Form initialized with default values');
+}
+
 async function handleSubmit(event) {
     event.preventDefault();
     
@@ -25,6 +41,9 @@ async function handleSubmit(event) {
     loadingElement.style.display = 'block';
     resultElement.innerHTML = '';
     
+    // Show initial progress
+    updateProgress(10, 'Starting report generation...');
+    
     try {
         const response = await fetch('/api/generate-report-form', {
             method: 'POST',
@@ -34,11 +53,13 @@ async function handleSubmit(event) {
         const result = await response.json();
         
         if (result.task_id) {
+            updateProgress(30, 'Task created successfully, monitoring progress...');
             loadingElement.style.display = 'none';
             resultElement.innerHTML = `
                 <div class="result success">
                     <strong>✅ Report Generation Started</strong><br>
-                    Task ID: ${result.task_id}<br><br>
+                    Task ID: ${result.task_id}<br>
+                    <small>Processing ${document.getElementById('max_articles').value} article(s) from ${document.getElementById('urls').value.split('\n').filter(url => url.trim()).length} blog(s)</small><br><br>
                     <div id="status"></div>
                     <button onclick="checkStatus('${result.task_id}')" class="status-button">
                         Check Status
@@ -49,6 +70,7 @@ async function handleSubmit(event) {
             throw new Error('No task ID returned');
         }
     } catch (error) {
+        updateProgress(0, 'Error occurred');
         loadingElement.style.display = 'none';
         resultElement.innerHTML = `
             <div class="result error">
@@ -57,6 +79,19 @@ async function handleSubmit(event) {
         `;
     } finally {
         isSubmitting = false; // Reset flag regardless of success or error
+    }
+}
+
+function updateProgress(percentage, message) {
+    const progressFill = document.getElementById('progress-fill');
+    const currentStep = document.getElementById('current-step');
+    
+    if (progressFill) {
+        progressFill.style.width = percentage + '%';
+    }
+    
+    if (currentStep) {
+        currentStep.textContent = message;
     }
 }
 
@@ -114,5 +149,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('reportForm');
     if (form) {
         form.addEventListener('submit', handleSubmit);
+        initializeForm();
     }
 });

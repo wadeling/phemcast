@@ -9,6 +9,7 @@ A comprehensive AI-powered system that automatically crawls company blogs, analy
 - **Multi-Format Report Generation**: Creates reports in both Markdown and PDF formats
 - **Web Interface**: User-friendly web application for inputting blog URLs and email addresses
 - **Email Delivery**: Automatically sends generated reports to specified email addresses
+- **Multiple Email Services**: Supports both Tencent Cloud SES and traditional SMTP
 - **LangGraph Workflow**: Robust state management and workflow orchestration
 
 ## 📋 Requirements
@@ -52,7 +53,15 @@ OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4
 OPENAI_BASE_URL=https://api.openai.com/v1  # Optional: for OpenAI-compatible endpoints
 
-# Email Configuration
+# Email Configuration - Choose one option:
+
+# Option 1: Tencent Cloud SES (Recommended)
+TENCENT_CLOUD_SECRET_ID=your_tencent_cloud_secret_id
+TENCENT_CLOUD_SECRET_KEY=your_tencent_cloud_secret_key
+TENCENT_CLOUD_REGION=ap-guangzhou
+TENCENT_FROM_EMAIL=your_verified_email@yourdomain.com
+
+# Option 2: Traditional SMTP
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 EMAIL_USERNAME=your_email@gmail.com
@@ -68,6 +77,35 @@ DEBUG=True
 HOST=0.0.0.0
 PORT=8000
 ```
+
+### Email Service Configuration
+
+The system automatically detects and uses the best available email service:
+
+1. **Tencent Cloud SES** (Recommended): More reliable, secure, and cost-effective
+   - Set `TENCENT_CLOUD_SECRET_ID` and `TENCENT_CLOUD_SECRET_KEY`
+   - Configure `TENCENT_FROM_EMAIL` with your verified sender address
+   - Choose `TENCENT_CLOUD_REGION` based on your location (default: ap-guangzhou)
+   - **Template Support**: Set `TENCENT_TEMPLATE_ID` for template-based emails
+   - **Content Mode**: Set `TENCENT_USE_TEMPLATE=false` for direct HTML/text content
+   - See [Tencent Cloud Setup Guide](TENCENT_CLOUD_SETUP.md) for detailed instructions
+
+2. **SMTP Fallback**: Traditional email service
+   - Set SMTP server details and credentials
+   - Used when Tencent Cloud SES is not configured
+
+**Tencent Cloud Email Modes:**
+- **Template Mode** (Default): Uses pre-configured email templates with dynamic content
+- **Direct Content Mode**: Sends custom HTML and text content directly
+
+**Region Selection Tips:**
+- `ap-guangzhou` (Guangzhou): Recommended for Mainland China users
+- `ap-hongkong` (Hong Kong): Good for Hong Kong/Taiwan users
+- `ap-singapore` (Singapore): Good for Southeast Asia users
+- `eu-frankfurt` (Frankfurt): Good for European users
+- `na-ashburn` (Virginia): Good for US East Coast users
+
+For detailed Tencent Cloud SES setup instructions, see [TENCENT_CLOUD_SETUP.md](TENCENT_CLOUD_SETUP.md).
 
 ## 🏗️ Project Structure
 
@@ -95,6 +133,65 @@ industry-news-agent/
 ```
 
 ## 🚀 Usage
+
+### Quick Setup
+
+1. **Run the setup script:**
+   ```bash
+   python setup_tencent_email.py
+   ```
+
+2. **Get help with region selection:**
+   ```bash
+   python select_region.py
+   ```
+
+3. **Validate your configuration:**
+   ```bash
+   python validate_email_config.py
+   ```
+
+4. **Test the email service:**
+   ```bash
+   python test_tencent_email.py
+   ```
+
+5. **Start the web interface:**
+   ```bash
+   python -m src.web_interface
+   ```
+
+### Logging Configuration
+
+The application includes advanced logging with file line numbers and function names:
+
+```bash
+# Test logging configuration
+python test_logging.py
+
+# Configure logging in .env file
+LOG_LEVEL=DEBUG                    # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_FILE=logs/app.log             # Optional: log to file
+SHOW_FILE_LINE=true               # Show file:line in logs
+SHOW_FUNCTION=true                # Show function name in logs
+```
+
+**Log Format Examples:**
+- **Full format**: `2024-01-15 10:30:45 - module_name - INFO - filename.py:123 - function_name - Message`
+- **File line only**: `2024-01-15 10:30:45 - module_name - INFO - filename.py:123 - Message`
+- **Simple format**: `2024-01-15 10:30:45 - module_name - INFO - Message`
+
+### Configuration Migration
+
+If you have an existing configuration with the old format, you can migrate it:
+
+```bash
+# 迁移旧格式配置到新格式
+python migrate_config.py
+```
+
+**Old format:** `TENCENTCLOUD_SECRET_ID`, `TENCENTCLOUD_SECRET_KEY`  
+**New format:** `TENCENT_CLOUD_SECRET_ID`, `TENCENT_CLOUD_SECRET_KEY`
 
 ### Web Interface
 
@@ -185,4 +282,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Check the logs for detailed error messages
 - Verify your environment variables are set correctly
-- Test individual components using the examples in the `examples/` directory 
+- Test individual components using the examples in the `examples/` directory

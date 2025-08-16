@@ -1,20 +1,22 @@
 """FastAPI web interface for industry news agent."""
 import asyncio
-import logging
 import uuid
 from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
 
 from .settings import Settings, load_settings
+from .logging_config import setup_logging, get_logger
 
 # Load settings first to get log level
 settings = load_settings()
 
-# Configure logging with dynamic level from settings
-logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Setup logging with file line numbers enabled
+setup_logging(
+    log_level=settings.log_level,
+    log_file=settings.log_file,
+    show_file_line=settings.show_file_line,
+    show_function=settings.show_function
 )
 
 from fastapi import FastAPI, HTTPException, Form, BackgroundTasks
@@ -22,14 +24,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
-from pathlib import Path
 import uvicorn
 
 from .agent import create_agent
 from .models import TaskStatus
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Global task storage (in production, use Redis or database)
 running_tasks: Dict[str, Dict] = {}
@@ -312,6 +313,8 @@ async def _process_report_task(
             "completed_at": datetime.now().isoformat(),
             "result": result,
             "report_paths": result.get("report_paths", {}),
+            "report_path_md": result.get("report_paths", {}).get("markdown", ""),
+            "report_path_pdf": result.get("report_paths", {}).get("pdf", ""),
             "total_articles": result.get("total_articles", 0),
             "total_urls": result.get("total_urls", 0),
             "processing_time": result.get("processing_time", 0),

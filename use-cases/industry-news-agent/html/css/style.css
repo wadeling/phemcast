@@ -32,6 +32,14 @@ label {
     color: #333;
 }
 
+.form-hint {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+}
+
 textarea, input, select {
     width: 100%;
     padding: 10px;
