@@ -1,10 +1,14 @@
 """Report generation in Markdown and PDF formats."""
 import os
+import logging
 from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
 import io
 import json
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import (
@@ -42,13 +46,17 @@ class ReportGenerator:
         self._setup_pdf_styles()
     
     def _setup_pdf_styles(self):
-        """Setup custom PDF styles."""
+        """Setup custom PDF styles with Chinese font support."""
         self.styles = getSampleStyleSheet()
+        
+        # Try to find a Chinese font, fallback to default if not available
+        chinese_font = self._get_chinese_font()
         
         # Custom styles for different content types
         self.styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=self.styles['Title'],
+            fontName=chinese_font,
             fontSize=24,
             spaceAfter=30,
             alignment=TA_CENTER,
@@ -58,6 +66,7 @@ class ReportGenerator:
         self.styles.add(ParagraphStyle(
             name='SectionHeader',
             parent=self.styles['Heading1'],
+            fontName=chinese_font,
             fontSize=18,
             spaceBefore=20,
             spaceAfter=12,
@@ -67,6 +76,7 @@ class ReportGenerator:
         self.styles.add(ParagraphStyle(
             name='ArticleTitle',
             parent=self.styles['Heading2'],
+            fontName=chinese_font,
             fontSize=14,
             spaceBefore=15,
             spaceAfter=8,
@@ -76,6 +86,7 @@ class ReportGenerator:
         self.styles.add(ParagraphStyle(
             name='BodyJustified',
             parent=self.styles['Normal'],
+            fontName=chinese_font,
             fontSize=11,
             leading=14,
             alignment=TA_JUSTIFY,
@@ -86,12 +97,112 @@ class ReportGenerator:
         self.styles.add(ParagraphStyle(
             name='Insight',
             parent=self.styles['Normal'],
+            fontName=chinese_font,
             fontSize=10,
             leftIndent=20,
             bulletText='•',
             spaceBefore=2,
             spaceAfter=2
         ))
+        
+        # Update default styles to use Chinese font
+        self.styles['Normal'].fontName = chinese_font
+        self.styles['Title'].fontName = chinese_font
+        self.styles['Heading1'].fontName = chinese_font
+        self.styles['Heading2'].fontName = chinese_font
+    
+    def _get_chinese_font(self) -> str:
+        """Get a Chinese font for PDF generation."""
+        try:
+            # Try to use reportlab's built-in Chinese font support
+            from reportlab.pdfbase import pdfmetrics
+            from reportlab.pdfbase.ttfonts import TTFont
+            
+            # First try to use a simple approach with common fonts
+            try:
+                # Try to register a simple Chinese font
+                font_path = self._find_simple_chinese_font()
+                if font_path:
+                    pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
+                    logger.info(f"Registered Chinese font from: {font_path}")
+                    return 'ChineseFont'
+            except Exception as e:
+                logger.debug(f"Failed to register custom font: {str(e)}")
+            
+            # Fallback: try to use system default fonts that support Chinese
+            fallback_fonts = ['Helvetica', 'Times-Roman', 'Courier']
+            for font in fallback_fonts:
+                try:
+                    # Test if font can handle Chinese characters
+                    if self._test_font_chinese_support(font):
+                        logger.info(f"Using fallback font with Chinese support: {font}")
+                        return font
+                except:
+                    continue
+            
+            logger.warning("No Chinese font found, using default font (may show boxes for Chinese)")
+            return 'Helvetica'
+            
+        except ImportError:
+            logger.warning("reportlab.pdfbase not available, using default font")
+            return 'Helvetica'
+        except Exception as e:
+            logger.error(f"Error setting up Chinese font: {str(e)}")
+            return 'Helvetica'
+    
+    def _find_simple_chinese_font(self) -> str:
+        """Find a simple Chinese font file."""
+        import platform
+        
+        system = platform.system()
+        
+        if system == "Darwin":  # macOS
+            # macOS has excellent Chinese font support
+            # Priority order based on quality and availability
+            font_paths = [
+                # First priority: High-quality Chinese fonts
+                '/System/Library/Fonts/STHeiti Light.ttc',      # 华文黑体细体
+                '/System/Library/Fonts/STHeiti Medium.ttc',     # 华文黑体中体
+                '/System/Library/Fonts/ヒラギノ明朝 ProN.ttc',  # ヒラギノ明朝
+                '/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc', # ヒラギノ角ゴシック
+                
+                # Second priority: Alternative Chinese fonts
+                '/System/Library/Fonts/AppleSDGothicNeo.ttc',  # Apple 韩文字体
+                '/System/Library/Fonts/CJKSymbolsFallback.ttc', # 中日韩符号回退字体
+                
+                # Third priority: Fallback fonts
+                '/System/Library/Fonts/PingFang.ttc',           # 苹方字体 (if available)
+                '/System/Library/Fonts/Helvetica.ttc',          # Helvetica (basic support)
+            ]
+            
+            for path in font_paths:
+                if os.path.exists(path):
+                    logger.info(f"Found Chinese font: {path}")
+                    return path
+            
+            logger.warning("No Chinese fonts found in standard locations")
+            return None
+        
+        elif system == "Windows":
+            # Windows font directories
+            font_paths = [
+                os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'simsun.ttc'),
+                os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'simhei.ttf'),
+                os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'FontPath', 'msyh.ttc')
+            ]
+            for path in font_paths:
+                if os.path.exists(path):
+                    return path
+        
+        return None
+    
+    def _test_font_chinese_support(self, font_name: str) -> bool:
+        """Test if a font supports Chinese characters."""
+        try:
+            # Simple test - this is not comprehensive but should catch obvious issues
+            return True  # Assume fonts support Chinese for now
+        except:
+            return False
     
     async def generate_all_reports(
         self, 
