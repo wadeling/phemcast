@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industry News Agent</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🏢 Industry News Agent</h1>
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+            <a href="nav.html" style="color: #2c5aa0; text-decoration: none; font-weight: bold;">
+                🧭 Choose Testing Mode
+            </a>
+        </div>
+        
+        <form id="reportForm">
+            <div class="form-group">
+                <label for="urls">Company Blog URLs (one per line):</label>
+                <textarea id="urls" name="urls" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required>https://blog.openai.com</textarea>
+                <small class="form-hint">💡 Tip: Start with one URL to test the system quickly</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email for Report Delivery (optional):</label>
+                <input type="email" id="email" name="email" placeholder="your.email@company.com">
+                <small class="form-hint">📧 Reports will be sent to this email address</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="max_articles">Maximum Articles per Blog:</label>
+                <select id="max_articles" name="max_articles">
+                    <option value="1" selected>1 article (Quick test)</option>
+                    <option value="3">3 articles</option>
+                    <option value="5">5 articles</option>
+                    <option value="10">10 articles</option>
+                    <option value="20">20 articles</option>
+                </select>
+                <small class="form-hint">🚀 Start with 1 article for faster processing</small>
+            </div>
+            
+            <button type="submit">Generate Report</button>
+            
+            <div id="loading">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <strong>Processing...</strong>
+                    <div id="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 0%" id="progress-fill"></div>
+                        </div>
+                    </div>
+                    <small id="current-step">Initializing...</small>
+                    <small class="process-steps">🔄 Scraping articles... 📊 Analyzing content... 📝 Generating reports...</small>
+                    <div id="process-log" class="log-output"></div>
+                </div>
+            </div>
+            
+            <div id="result"></div>
+        </form>
+        
+        <div class="features">
+            <strong>Features:</strong> AI-powered analysis • Smart insights • PDF & Markdown reports • Rate-limited scraping<br>
+            <strong>Quick Start:</strong> The form is pre-filled with 1 article for quick testing<br>
+            <strong>Quick Test:</strong> <a href="quick-test.html" target="_blank">🚀 Try the Quick Test Page</a> for even faster testing<br>
+            <strong>API:</strong> POST to /api/generate-report for programmatic access
+        </div>
+    </div>
+    
+    <script src="js/app.js"></script>
+</body>
+</html>

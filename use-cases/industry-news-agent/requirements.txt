@@ -1,3 +1,6 @@
+# Base requirements for Docker build
+aiofiles>=23.2.0
+
 # Core LangGraph and LangChain dependencies
 langgraph>=0.2.0
 langchain>=0.2.0
