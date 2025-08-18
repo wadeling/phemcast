@@ -290,8 +290,6 @@ Report includes:
 {chr(10).join([f"- {company}" for company in companies][:5])}
 {f"...and {len(companies) - 5} more" if len(companies) > 5 else ""}
 
-Best regards,
-Industry News Agent
 """.strip()
 
 

@@ -394,10 +394,21 @@ class IndustryNewsAgent:
         try:
             state["logs"] = state.get("logs", []) + [f"📧 Starting email delivery to {len(recipients)} recipients"]
             
+            # Prepare metadata for email content
+            articles = state.get("articles", [])
+            company_insights = state.get("company_insights", {})
+            report_metadata = {
+                "total_articles": len(articles),
+                "companies": list(company_insights.keys()),
+                "execution_date": datetime.now()
+            }
+            
+            logger.info(f"Email metadata: {report_metadata}")
+            
             email_service = EmailService(self.settings)
             
             email_results = await email_service.send_bulk_reports(
-                recipients, report_paths
+                recipients, report_paths, report_metadata
             )
             
             # Check if at least one email was sent successfully
