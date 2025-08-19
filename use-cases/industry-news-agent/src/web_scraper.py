@@ -64,16 +64,13 @@ class AsyncWebScraper:
         errors = []
         seen_urls = set()
         
-        # Calculate target articles per URL to ensure we get enough unique articles
-        target_per_url = max_articles * 2  # Scrape more to account for duplicates
-        
         # Process URLs with delay between requests
         for i, url in enumerate(urls):
             if i > 0:
                 await asyncio.sleep(self.settings.request_delay)
             
             try:
-                url_articles = await self._scrape_single_blog(url, target_per_url)
+                url_articles = await self._scrape_single_blog(url, max_articles)
                 
                 # Deduplicate articles from this URL
                 unique_articles = []
@@ -344,7 +341,8 @@ class AsyncWebScraper:
                     
                     # Filter for blog articles and avoid navigation/other pages
                     if self._is_valid_article_url(full_url, base_url):
-                        links.append(full_url)
+                        if full_url not in links:  
+                            links.append(full_url)
                         if len(links) >= 50:  # Increased limit to support deduplication
                             break
             if links:
