@@ -194,6 +194,35 @@ class ReportGenerator:
                 if os.path.exists(path):
                     return path
         
+        elif system == "Linux":
+            # Linux/Docker environment font directories
+            font_paths = [
+                # Noto CJK fonts (Google's open-source CJK font family)
+                '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+                '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
+                '/usr/share/fonts/truetype/noto/NotoSansCJK-Light.ttc',
+                
+                # WQY fonts (WenQuanYi - Chinese font)
+                '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
+                '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
+                
+                # DejaVu fonts (fallback)
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
+                
+                # Liberation fonts
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
+            ]
+            
+            for path in font_paths:
+                if os.path.exists(path):
+                    logger.info(f"Found Linux font: {path}")
+                    return path
+            
+            logger.warning("No Linux fonts found in standard locations")
+            return None
+        
         return None
     
     def _test_font_chinese_support(self, font_name: str) -> bool:
