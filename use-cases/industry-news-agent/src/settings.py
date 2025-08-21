@@ -20,6 +20,16 @@ class Settings(BaseSettings):
         "extra": "ignore",
     }
 
+    # Database Configuration
+    database_url: str = Field(
+        default="mysql://root:password@mysql:3306/phemcast",
+        description="Database connection URL"
+    )
+    secret_key: str = Field(
+        default="your-secret-key-here-change-in-production",
+        description="Secret key for JWT tokens"
+    )
+
     # Logging Configuration
     log_level: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     log_file: Optional[str] = Field(default=None, description="Log file path (optional, console only if not set)")

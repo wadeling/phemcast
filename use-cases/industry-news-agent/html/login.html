@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - Industry News Agent</title>
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        .login-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            border-bottom-color: #007bff;
+            color: #007bff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            font-size: 16px;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .success-message {
+            color: #28a745;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1 style="text-align: center; margin-bottom: 30px;">Industry News Agent</h1>
+        
+        <div class="login-tabs">
+            <div class="tab active" onclick="switchTab('login')">用户名登录</div>
+            <div class="tab" onclick="switchTab('invite')">邀请码登录</div>
+        </div>
+        
+        <div id="login-tab" class="tab-content active">
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn">登录</button>
+            </form>
+            <div id="login-error" class="error-message"></div>
+        </div>
+        
+        <div id="invite-tab" class="tab-content">
+            <form id="invite-form">
+                <div class="form-group">
+                    <label for="invite-code">邀请码</label>
+                    <input type="text" id="invite-code" name="invite_code" required>
+                </div>
+                <button type="submit" class="btn">验证邀请码</button>
+            </form>
+            <div id="invite-error" class="error-message"></div>
+        </div>
+        
+        <div id="register-tab" class="tab-content" style="display: none;">
+            <h3 style="text-align: center; margin-bottom: 20px;">设置账户信息</h3>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="reg-username">用户名</label>
+                    <input type="text" id="reg-username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">邮箱 (可选)</label>
+                    <input type="email" id="reg-email" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">密码</label>
+                    <input type="password" id="reg-password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-confirm-password">确认密码</label>
+                    <input type="password" id="reg-confirm-password" name="confirm_password" required>
+                </div>
+                <input type="hidden" id="reg-invite-code" name="invite_code">
+                <button type="submit" class="btn">创建账户</button>
+            </form>
+            <div id="register-error" class="error-message"></div>
+            <div id="register-success" class="success-message"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentInviteCode = '';
+        
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabName + '-tab').style.display = 'block';
+            event.target.classList.add('active');
+            clearMessages();
+        }
+        
+        function clearMessages() {
+            document.querySelectorAll('.error-message, .success-message').forEach(msg => {
+                msg.textContent = '';
+            });
+        }
+        
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    localStorage.setItem('token', data.access_token);
+                    // 存储用户信息
+                    localStorage.setItem('userInfo', JSON.stringify({
+                        username: data.username,
+                        email: data.email || ''
+                    }));
+                    window.location.href = '/';
+                } else {
+                    document.getElementById('login-error').textContent = data.detail || '登录失败';
+                }
+            } catch (error) {
+                document.getElementById('login-error').textContent = '网络错误，请重试';
+            }
+        });
+        
+        document.getElementById('invite-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inviteCode = document.getElementById('invite-code').value;
+            
+            try {
+                const response = await fetch('/api/auth/verify-invite', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ invite_code: inviteCode })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    currentInviteCode = inviteCode;
+                    document.getElementById('invite-tab').style.display = 'none';
+                    document.getElementById('register-tab').style.display = 'block';
+                    document.getElementById('reg-invite-code').value = inviteCode;
+                } else {
+                    document.getElementById('invite-error').textContent = data.detail || '邀请码无效';
+                }
+            } catch (error) {
+                document.getElementById('invite-error').textContent = '网络错误，请重试';
+            }
+        });
+        
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('reg-confirm-password').value;
+            
+            if (password !== confirmPassword) {
+                document.getElementById('register-error').textContent = '两次输入的密码不一致';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username, email, password, invite_code: currentInviteCode })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('register-success').textContent = '账户创建成功！正在跳转...';
+                    setTimeout(async () => {
+                        try {
+                            const loginResponse = await fetch('/api/auth/login', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ username, password })
+                            });
+                            
+                            const loginData = await loginResponse.json();
+                            if (loginResponse.ok) {
+                                localStorage.setItem('token', loginData.access_token);
+                                // 存储用户信息
+                                localStorage.setItem('userInfo', JSON.stringify({
+                                    username: loginData.username,
+                                    email: email || ''
+                                }));
+                                window.location.href = '/';
+                            }
+                        } catch (error) {
+                            window.location.href = '/login';
+                        }
+                    }, 2000);
+                } else {
+                    document.getElementById('register-error').textContent = data.detail || '注册失败';
+                }
+            } catch (error) {
+                document.getElementById('register-error').textContent = '网络错误，请重试';
+            }
+        });
+        
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const inviteCode = urlParams.get('invite_code');
+            if (inviteCode) {
+                switchTab('invite');
+                document.getElementById('invite-code').value = inviteCode;
+                document.getElementById('invite-form').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>

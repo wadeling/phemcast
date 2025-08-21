@@ -20,11 +20,36 @@ services:
     volumes:
       - app-reports:/app/reports
       - app-logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: phemcast
+      MYSQL_USER: phemcast
+      MYSQL_PASSWORD: phemcast
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -38,4 +63,6 @@ volumes:
   app-reports:
     driver: local
   app-logs:
+    driver: local
+  mysql_data:
     driver: local

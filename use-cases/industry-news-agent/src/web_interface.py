@@ -19,7 +19,7 @@ setup_logging(
     show_function=settings.show_function
 )
 
-from fastapi import FastAPI, HTTPException, Form, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Form, BackgroundTasks, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,6 +28,11 @@ import uvicorn
 
 from .agent import create_agent
 from .models import TaskStatus
+from .database import init_db, get_async_db, User
+from .auth import (
+    authenticate_user, create_user, verify_invite_code,
+    create_access_token, get_current_user
+)
 
 
 logger = get_logger(__name__)
@@ -51,12 +56,39 @@ class ReportRequest(BaseModel):
         return v
 
 
+class LoginRequest(BaseModel):
+    """Login request."""
+    username: str = Field(..., description="Username")
+    password: str = Field(..., description="Password")
+
+
+class InviteVerifyRequest(BaseModel):
+    """Invite code verification request."""
+    invite_code: str = Field(..., description="Invite code")
+
+
+class RegisterRequest(BaseModel):
+    """User registration request."""
+    username: str = Field(..., description="Username")
+    email: Optional[str] = Field(None, description="Email")
+    password: str = Field(..., description="Password")
+    invite_code: str = Field(..., description="Invite code")
+
+
 # Initialize Python application
 app = FastAPI(
     title="Industry News Agent API",
     description="AI-powered industry news aggregation and analysis",
     version="1.0.0"
 )
+
+# Initialize database
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup."""
+    from .settings import load_settings
+    settings = load_settings()
+    init_db(settings.database_url)
 
 # Setup middleware
 app.add_middleware(
@@ -100,8 +132,38 @@ async def home():
     return FileResponse(html_file, media_type="text/html")
 
 
+@app.get("/login")
+async def login_page():
+    """Serve the login page."""
+    html_file = html_dir / "login.html"
+    if not html_file.exists():
+        return JSONResponse(
+            {"error": "Login page not found."},
+            status_code=500
+        )
+    return FileResponse(html_file, media_type="text/html")
+
+
+@app.get("/error")
+async def error_page():
+    """Serve the error page."""
+    html_file = html_dir / "error.html"
+    if not html_file.exists():
+        return JSONResponse(
+            {"error": "Error page not found."},
+            status_code=500
+        )
+    return FileResponse(html_file, media_type="text/html")
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint (no auth required)."""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
 @app.get("/api/status")
-async def get_system_status():
+async def get_system_status(current_user: User = Depends(get_current_user)):
     """Get system status and configuration."""
     return {
         "status": "healthy",
@@ -115,8 +177,66 @@ async def get_system_status():
             "report_generation",
             "email_delivery"
         ],
-        "active_tasks": len(running_tasks)
+        "active_tasks": len(running_tasks),
+        "user": current_user.username
     }
+
+
+@app.post("/api/auth/login")
+async def login(request: LoginRequest):
+    """User login with username and password."""
+    user = await authenticate_user(request.username, request.password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password"
+        )
+    
+    # Create access token
+    access_token = create_access_token(data={"sub": user.username})
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "username": user.username
+    }
+
+
+@app.post("/api/auth/verify-invite")
+async def verify_invite(request: InviteVerifyRequest):
+    """Verify invite code."""
+    invite_code = await verify_invite_code(request.invite_code)
+    if not invite_code:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired invite code"
+        )
+    
+    return {"message": "Invite code is valid"}
+
+
+@app.post("/api/auth/register")
+async def register(request: RegisterRequest):
+    """Register new user with invite code."""
+    try:
+        user = await create_user(
+            username=request.username,
+            email=request.email,
+            password=request.password,
+            invite_code=request.invite_code
+        )
+        
+        return {
+            "message": "User created successfully",
+            "username": user.username
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create user: {str(e)}"
+        )
 
 
 @app.post("/api/generate-report")

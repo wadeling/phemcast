@@ -8,6 +8,13 @@
 </head>
 <body>
     <div class="container">
+        <div style="text-align: right; margin-bottom: 20px;">
+            <span id="user-info" style="display: none;">
+                Welcome, <span id="username"></span> | 
+                <a href="#" onclick="logout()" style="color: #dc3545; text-decoration: none;">Logout</a>
+            </span>
+        </div>
+        
         <h1>🏢 Industry News Agent</h1>
         
         <div style="text-align: center; margin-bottom: 20px;">
@@ -70,5 +77,58 @@
     </div>
     
     <script src="/static/js/app.js"></script>
+    
+    <script>
+        // 登录检查
+        async function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                // 没有token，重定向到登录页面
+                window.location.href = '/login';
+                return;
+            }
+            
+            try {
+                // 验证token有效性
+                const response = await fetch('/api/status', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    // token无效，清除并重定向到登录页面
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('userInfo');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                // token有效，显示用户信息
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                if (userInfo.username) {
+                    document.getElementById('username').textContent = userInfo.username;
+                    document.getElementById('user-info').style.display = 'inline';
+                }
+            } catch (error) {
+                // 网络错误，清除token并重定向到登录页面
+                localStorage.removeItem('token');
+                localStorage.removeItem('userInfo');
+                window.location.href = '/login';
+            }
+        }
+        
+        // 登出功能
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userInfo');
+            window.location.href = '/login';
+        }
+        
+        // 页面加载时检查登录状态
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+        });
+    </script>
 </body>
 </html>

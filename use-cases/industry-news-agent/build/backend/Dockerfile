@@ -29,11 +29,14 @@ RUN apt-get update && apt-get install -y \
     fonts-noto-cjk-extra \
     fonts-wqy-microhei \
     fonts-wqy-zenhei \
+    default-libmysqlclient-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy application code
 COPY ./src/ ./src/
 COPY ./requirements.txt ./app_requirements.txt
+COPY init_invite_codes.py .
 
 # Change pip source to Aliyun for faster download
 RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
