@@ -19,12 +19,14 @@ setup_logging(
     show_function=settings.show_function
 )
 
-from fastapi import FastAPI, HTTPException, Form, BackgroundTasks, Depends
+from fastapi import FastAPI, HTTPException, Form, BackgroundTasks, Depends, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 import uvicorn
+import json
+from typing import List
 
 from .agent import create_agent
 from .models import TaskStatus
@@ -33,12 +35,56 @@ from .auth import (
     authenticate_user, create_user, verify_invite_code,
     create_access_token, get_current_user
 )
+from .tts_service import create_tts_service
 
 
 logger = get_logger(__name__)
 
 # Global task storage (in production, use Redis or database)
 running_tasks: Dict[str, Dict] = {}
+
+# WebSocket connection manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        logger.info(f"WebSocket connected. Total connections: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        logger.info(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
+
+    async def broadcast(self, message: dict):
+        """Broadcast message to all connected clients."""
+        if self.active_connections:
+            disconnected_connections = []
+            for connection in self.active_connections:
+                try:
+                    await connection.send_text(json.dumps(message, ensure_ascii=False))
+                    logger.debug(f"Message broadcasted successfully to client")
+                except Exception as e:
+                    logger.error(f"Failed to send message to WebSocket: {e}")
+                    # Mark for removal
+                    disconnected_connections.append(connection)
+            
+            # Remove broken connections
+            for connection in disconnected_connections:
+                if connection in self.active_connections:
+                    self.active_connections.remove(connection)
+                    logger.info(f"Removed broken WebSocket connection. Total connections: {len(self.active_connections)}")
+
+    async def send_personal_message(self, message: dict, websocket: WebSocket):
+        """Send message to specific client."""
+        try:
+            await websocket.send_text(json.dumps(message, ensure_ascii=False))
+        except Exception as e:
+            logger.error(f"Failed to send personal message: {e}")
+
+manager = ConnectionManager()
 
 
 class ReportRequest(BaseModel):
@@ -420,8 +466,17 @@ async def _process_report_task(
 ):
     """Background task for processing reports."""
     try:
+        # Update status to processing
         running_tasks[task_id]["status"] = "processing"
         running_tasks[task_id]["started_at"] = datetime.now().isoformat()
+        
+        # Broadcast processing status
+        await manager.broadcast({
+            "type": "task_update",
+            "task_id": task_id,
+            "status": "processing",
+            "message": "Task started processing"
+        })
         
         # Create and run agent
         agent = create_agent()
@@ -444,6 +499,19 @@ async def _process_report_task(
         
         logger.info(f"Task {task_id} completed: {result['status']}")
         
+        # Broadcast completion status
+        await manager.broadcast({
+            "type": "task_update",
+            "task_id": task_id,
+            "status": result["status"],
+            "message": "Task completed successfully",
+            "data": {
+                "total_articles": result.get("total_articles", 0),
+                "report_paths": result.get("report_paths", {}),
+                "email_sent": bool(email)
+            }
+        })
+        
     except Exception as e:
         logger.error(f"Task {task_id} failed: {str(e)}")
         running_tasks[task_id].update({
@@ -452,8 +520,50 @@ async def _process_report_task(
             "logs": [f"❌ Processing failed: {str(e)}", "📋 See error details above"],
             "completed_at": datetime.now().isoformat()
         })
+        
+        # Broadcast error status
+        await manager.broadcast({
+            "type": "task_update",
+            "task_id": task_id,
+            "status": "error",
+            "message": "Task failed",
+            "error": str(e)
+        })
 
 
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time communication."""
+    try:
+        await manager.connect(websocket)
+        logger.info(f"WebSocket client connected. Total connections: {len(manager.active_connections)}")
+        
+        while True:
+            try:
+                # Keep connection alive and handle incoming messages
+                data = await websocket.receive_text()
+                try:
+                    message = json.loads(data)
+                    if message.get("type") == "ping":
+                        await manager.send_personal_message({"type": "pong"}, websocket)
+                        logger.debug(f"Ping received from client, sent pong")
+                except json.JSONDecodeError:
+                    logger.warning("Invalid JSON received from WebSocket")
+                    
+            except WebSocketDisconnect:
+                logger.info("WebSocket client disconnected")
+                break
+            except Exception as e:
+                logger.error(f"Error handling WebSocket message: {e}")
+                break
+                
+    except Exception as e:
+        logger.error(f"WebSocket connection error: {e}")
+    finally:
+        manager.disconnect(websocket)
+        logger.info(f"WebSocket client disconnected. Total connections: {len(manager.active_connections)}")
 
 
 @app.get("/api/docs")
@@ -463,8 +573,60 @@ async def api_docs():
         "POST /api/generate-report": "Generate reports (JSON)",
         "POST /api/generate-report-form": "Generate reports (form)",
         "GET /api/task/{task_id}": "Check task status",
-        "GET /api/status": "System status"
+        "GET /api/status": "System status",
+        "GET /audio/{token}": "Access audio file with token",
+        "WS /ws": "WebSocket for real-time updates"
     }}
+
+
+@app.get("/audio/{token}")
+async def get_audio_file(token: str):
+    """Get audio file using access token."""
+    try:
+        from .settings import load_settings
+        settings = load_settings()
+        
+        # 创建TTS服务实例来验证token
+        tts_service = create_tts_service(settings)
+        
+        # 获取音频访问URL
+        audio_url = tts_service.get_audio_access_url(token)
+        if not audio_url:
+            raise HTTPException(status_code=404, detail="Audio file not found or token expired")
+        
+        # 获取token信息
+        token_file = tts_service.temp_audio_dir / f"{token}.json"
+        if not token_file.exists():
+            raise HTTPException(status_code=404, detail="Invalid token")
+        
+        import json
+        with open(token_file, 'r', encoding='utf-8') as f:
+            token_info = json.load(f)
+        
+        # 检查是否过期
+        from datetime import datetime
+        expiry_time = datetime.fromisoformat(token_info["expires_at"])
+        if datetime.now() > expiry_time:
+            # 清理过期文件
+            tts_service._cleanup_expired_token(token)
+            raise HTTPException(status_code=410, detail="Audio file access expired")
+        
+        # 返回音频文件
+        audio_path = Path(token_info["temp_path"])
+        if not audio_path.exists():
+            raise HTTPException(status_code=404, detail="Audio file not found")
+        
+        return FileResponse(
+            str(audio_path),
+            media_type="audio/mpeg",
+            filename=f"report_audio_{token[:8]}.mp3"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error accessing audio file: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from .settings import Settings
 from .models import Article, CompanyInsights
+from .tts_service import create_tts_service, MinimaxiTTSService
 
 
 class ReportGenerator:
@@ -44,6 +45,18 @@ class ReportGenerator:
         
         # Setup PDF styles
         self._setup_pdf_styles()
+        
+        # Setup TTS service
+        self.tts_service = None
+        if settings.enable_tts and settings.minimaxi_api_key and settings.minimaxi_group_id:
+            try:
+                self.tts_service = create_tts_service(settings)
+                logger.info("TTS service initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize TTS service: {e}")
+                self.tts_service = None
+        elif settings.enable_tts and (not settings.minimaxi_api_key or not settings.minimaxi_group_id):
+            logger.warning("TTS service disabled: missing minimaxi_api_key or minimaxi_group_id")
     
     def _setup_pdf_styles(self):
         """Setup custom PDF styles with Chinese font support."""
@@ -292,6 +305,18 @@ class ReportGenerator:
             pdf_path = self._generate_pdf_report(report_data, timestamp)
             report_paths["pdf"] = str(pdf_path)
         
+        # Generate audio report if TTS is enabled
+        if config.get("include_audio", True) and self.tts_service:
+            try:
+                audio_result = await self._generate_audio_report(report_data, timestamp)
+                if audio_result["success"]:
+                    report_paths["audio"] = audio_result
+                    logger.info(f"Audio report generated successfully: {audio_result['access_token']}")
+                else:
+                    logger.warning(f"Failed to generate audio report: {audio_result.get('error', 'Unknown error')}")
+            except Exception as e:
+                logger.error(f"Error generating audio report: {e}")
+        
         return report_paths
     
     def _generate_markdown_report(self, data: Dict, timestamp: str) -> Path:
@@ -319,6 +344,39 @@ class ReportGenerator:
             f.write(rendered_content)
         
         return filepath
+    
+    async def _generate_audio_report(self, data: Dict, timestamp: str) -> Dict:
+        """Generate audio report using TTS service."""
+        try:
+            # 生成报告摘要文本用于TTS
+            summary_text = self._generate_executive_summary(data)
+            
+            # 添加行业趋势
+            trends_text = "行业趋势包括：" + "，".join(data["industry_trends"][:5])  # 限制前5个趋势
+            
+            # 添加关键见解
+            insights_text = "关键见解包括：" + "，".join(data["key_insights"][:5])  # 限制前5个见解
+            
+            # 组合完整的TTS文本
+            full_text = f"{summary_text}。{trends_text}。{insights_text}。"
+            
+            # 生成报告ID
+            report_id = f"report_{timestamp}"
+            
+            # 调用TTS服务生成语音
+            audio_result = await self.tts_service.generate_speech(
+                text=full_text,
+                report_id=report_id
+            )
+            
+            return audio_result
+            
+        except Exception as e:
+            logger.error(f"Error generating audio report: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
     def _generate_pdf_report(self, data: Dict, timestamp: str) -> Path:
         """Generate PDF report."""

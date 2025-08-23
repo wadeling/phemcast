@@ -13,6 +13,9 @@
                 Welcome, <span id="username"></span> | 
                 <a href="#" onclick="logout()" style="color: #dc3545; text-decoration: none;">Logout</a>
             </span>
+            <div id="websocket-status" style="margin-top: 10px; font-size: 12px;">
+                <span id="ws-indicator" style="color: #666;">🔌 WebSocket: 连接中...</span>
+            </div>
         </div>
         
         <h1>🏢 Industry News Agent</h1>
@@ -20,6 +23,22 @@
         <div style="text-align: center; margin-bottom: 20px;">
             <a href="/static/nav.html" style="color: #2c5aa0; text-decoration: none; font-weight: bold;">
                 🧭 Choose Testing Mode
+            </a>
+            <br><br>
+            <a href="/static/audio-test.html" style="color: #28a745; text-decoration: none; font-weight: bold;">
+                🎧 测试音频播放器
+            </a>
+            <br>
+            <a href="/static/websocket-test.html" style="color: #007bff; text-decoration: none; font-weight: bold;">
+                🔌 测试 WebSocket 连接
+            </a>
+            <br>
+            <a href="/static/websocket-diagnostic.html" style="color: #ffc107; text-decoration: none; font-weight: bold;">
+                🔍 WebSocket 连接诊断
+            </a>
+            <br>
+            <a href="/static/download-test.html" style="color: #17a2b8; text-decoration: none; font-weight: bold;">
+                📥 下载功能测试
             </a>
         </div>
         
@@ -68,8 +87,32 @@
             <div id="result"></div>
         </form>
         
+        <!-- 音频播放区域 -->
+        <div id="audio-section" style="display: none;">
+            <div class="audio-container">
+                <h3>🎧 报告音频</h3>
+                <div id="audio-player">
+                    <audio id="report-audio" controls style="width: 100%; margin: 10px 0;">
+                        <source id="audio-source" src="" type="audio/mpeg">
+                        您的浏览器不支持音频播放。
+                    </audio>
+                    <div class="audio-info">
+                        <p><strong>状态:</strong> <span id="audio-status">准备就绪</span></p>
+                        <p><strong>有效期:</strong> <span id="audio-expiry">24小时</span></p>
+                        <p><strong>直接链接:</strong> <a id="audio-direct-link" href="" target="_blank" style="color: #007bff;">在新窗口打开</a></p>
+                    </div>
+                    <div class="audio-controls">
+                        <button id="play-audio" class="audio-btn" onclick="playAudio()">▶️ 播放</button>
+                        <button id="pause-audio" class="audio-btn" onclick="pauseAudio()" style="display: none;">⏸️ 暂停</button>
+                        <button id="stop-audio" class="audio-btn" onclick="stopAudio()">⏹️ 停止</button>
+                        <button id="download-audio" class="audio-btn" onclick="downloadAudio()">💾 下载</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div class="features">
-            <strong>Features:</strong> AI-powered analysis • Smart insights • PDF & Markdown reports • Rate-limited scraping<br>
+            <strong>Features:</strong> AI-powered analysis • Smart insights • PDF & Markdown reports • Rate-limited scraping • 🎧 Audio reports<br>
             <strong>Quick Start:</strong> The form is pre-filled with 1 article for quick testing<br>
             <strong>Quick Test:</strong> <a href="/static/quick-test.html" target="_blank">🚀 Try the Quick Test Page</a> for even faster testing<br>
             <strong>API:</strong> POST to /api/generate-report for programmatic access
@@ -129,6 +172,116 @@
         document.addEventListener('DOMContentLoaded', function() {
             checkAuth();
         });
+        
+        // WebSocket 状态更新函数
+        function updateWebSocketStatus(connected) {
+            const indicator = document.getElementById('ws-indicator');
+            if (indicator) {
+                if (connected) {
+                    indicator.textContent = '🟢 WebSocket: 已连接';
+                    indicator.style.color = '#28a745';
+                } else {
+                    indicator.textContent = '🔴 WebSocket: 连接断开';
+                    indicator.style.color = '#dc3545';
+                }
+            }
+        }
+        
+        // 音频控制函数
+        function playAudio() {
+            const audio = document.getElementById('report-audio');
+            const playBtn = document.getElementById('play-audio');
+            const pauseBtn = document.getElementById('pause-audio');
+            
+            audio.play();
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = 'inline-block';
+            document.getElementById('audio-status').textContent = '播放中...';
+        }
+        
+        function pauseAudio() {
+            const audio = document.getElementById('report-audio');
+            const playBtn = document.getElementById('play-audio');
+            const pauseBtn = document.getElementById('pause-audio');
+            
+            audio.pause();
+            playBtn.style.display = 'inline-block';
+            pauseBtn.style.display = 'none';
+            document.getElementById('audio-status').textContent = '已暂停';
+        }
+        
+        function stopAudio() {
+            const audio = document.getElementById('report-audio');
+            const playBtn = document.getElementById('play-audio');
+            const pauseBtn = document.getElementById('pause-audio');
+            
+            audio.pause();
+            audio.currentTime = 0;
+            playBtn.style.display = 'inline-block';
+            pauseBtn.style.display = 'none';
+            document.getElementById('audio-status').textContent = '已停止';
+        }
+        
+        function downloadAudio() {
+            const audio = document.getElementById('report-audio');
+            const audioUrl = audio.src;
+            
+            if (audioUrl) {
+                const link = document.createElement('a');
+                link.href = audioUrl;
+                link.download = 'report_audio.mp3';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                alert('没有可下载的音频文件');
+            }
+        }
+        
+        // 显示音频播放器
+        function showAudioPlayer(audioData) {
+            const audioSection = document.getElementById('audio-section');
+            const audioSource = document.getElementById('audio-source');
+            const audioDirectLink = document.getElementById('audio-direct-link');
+            const audioExpiry = document.getElementById('audio-expiry');
+            
+            // 设置音频源
+            const audioUrl = `/audio/${audioData.access_token}`;
+            audioSource.src = audioUrl;
+            
+            // 重新加载音频元素
+            const audio = document.getElementById('report-audio');
+            audio.load();
+            
+            // 设置直接链接
+            audioDirectLink.href = audioUrl;
+            
+            // 设置过期时间
+            if (audioData.expires_at) {
+                const expiryDate = new Date(audioData.expires_at);
+                const now = new Date();
+                const timeLeft = expiryDate - now;
+                const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (timeLeft > 0) {
+                    audioExpiry.textContent = `${hoursLeft}小时${minutesLeft}分钟`;
+                } else {
+                    audioExpiry.textContent = '已过期';
+                }
+            }
+            
+            // 显示音频区域
+            audioSection.style.display = 'block';
+            
+            // 滚动到音频区域
+            audioSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 隐藏音频播放器
+        function hideAudioPlayer() {
+            document.getElementById('audio-section').style.display = 'none';
+        }
     </script>
 </body>
 </html>

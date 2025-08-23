@@ -98,6 +98,12 @@ class Settings(BaseSettings):
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         ]
     )
+    
+    # TTS Configuration
+    minimaxi_api_key: Optional[str] = Field(default=None, description="Minimaxi API key for text-to-speech")
+    minimaxi_group_id: Optional[str] = Field(default=None, description="Minimaxi Group ID for API access")
+    base_url: str = Field(default="http://localhost:8000", description="Base URL for the application")
+    enable_tts: bool = Field(default=True, description="Enable text-to-speech functionality")
     timeout: int = Field(default=30, description="Request timeout in seconds")
 
     # Cache

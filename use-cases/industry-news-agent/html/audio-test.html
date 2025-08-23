@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音频播放器测试 - Industry News Agent</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎧 音频播放器测试</h1>
+        
+        <div class="form-group">
+            <label for="test-token">测试音频 Token:</label>
+            <input type="text" id="test-token" placeholder="输入音频访问token进行测试" value="test-token-123">
+            <small class="form-hint">💡 输入一个有效的音频访问token来测试播放功能</small>
+        </div>
+        
+        <button onclick="testAudioPlayer()">🧪 测试音频播放器</button>
+        
+        <!-- 音频播放区域 -->
+        <div id="audio-section" style="display: none;">
+            <div class="audio-container">
+                <h3>🎧 报告音频</h3>
+                <div id="audio-player">
+                    <audio id="report-audio" controls style="width: 100%; margin: 10px 0;">
+                        <source id="audio-source" src="" type="audio/mpeg">
+                        您的浏览器不支持音频播放。
+                    </audio>
+                    <div class="audio-info">
+                        <p><strong>状态:</strong> <span id="audio-status">准备就绪</span></p>
+                        <p><strong>有效期:</strong> <span id="audio-expiry">24小时</span></p>
+                        <p><strong>直接链接:</strong> <a id="audio-direct-link" href="" target="_blank" style="color: #007bff;">在新窗口打开</a></p>
+                    </div>
+                    <div class="audio-controls">
+                        <button id="play-audio" class="audio-btn" onclick="playAudio()">▶️ 播放</button>
+                        <button id="pause-audio" class="audio-btn" onclick="pauseAudio()" style="display: none;">⏸️ 暂停</button>
+                        <button id="stop-audio" class="audio-btn" onclick="stopAudio()">⏹️ 停止</button>
+                        <button id="download-audio" class="audio-btn" onclick="downloadAudio()">💾 下载</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="features">
+            <strong>测试说明:</strong><br>
+            • 输入一个有效的音频访问token<br>
+            • 点击测试按钮查看音频播放器<br>
+            • 测试各种播放控制功能<br>
+            • 验证音频链接和下载功能
+        </div>
+    </div>
+    
+    <script>
+        // 音频控制函数
+        function playAudio() {
+            const audio = document.getElementById('report-audio');
+            const playBtn = document.getElementById('play-audio');
+            const pauseBtn = document.getElementById('pause-audio');
+            
+            audio.play();
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = 'inline-block';
+            document.getElementById('audio-status').textContent = '播放中...';
+        }
+        
+        function pauseAudio() {
+            const audio = document.getElementById('report-audio');
+            const playBtn = document.getElementById('play-audio');
+            const pauseBtn = document.getElementById('pause-audio');
+            
+            audio.pause();
+            playBtn.style.display = 'inline-block';
+            pauseBtn.style.display = 'none';
+            document.getElementById('audio-status').textContent = '已暂停';
+        }
+        
+        function stopAudio() {
+            const audio = document.getElementById('report-audio');
+            const playBtn = document.getElementById('play-audio');
+            const pauseBtn = document.getElementById('pause-audio');
+            
+            audio.pause();
+            audio.currentTime = 0;
+            playBtn.style.display = 'inline-block';
+            pauseBtn.style.display = 'none';
+            document.getElementById('audio-status').textContent = '已停止';
+        }
+        
+        function downloadAudio() {
+            const audio = document.getElementById('report-audio');
+            const audioUrl = audio.src;
+            
+            if (audioUrl) {
+                const link = document.createElement('a');
+                link.href = audioUrl;
+                link.download = 'report_audio.mp3';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                alert('没有可下载的音频文件');
+            }
+        }
+        
+        // 显示音频播放器
+        function showAudioPlayer(audioData) {
+            const audioSection = document.getElementById('audio-section');
+            const audioSource = document.getElementById('audio-source');
+            const audioDirectLink = document.getElementById('audio-direct-link');
+            const audioExpiry = document.getElementById('audio-expiry');
+            
+            // 设置音频源
+            const audioUrl = `/audio/${audioData.access_token}`;
+            audioSource.src = audioUrl;
+            
+            // 重新加载音频元素
+            const audio = document.getElementById('report-audio');
+            audio.load();
+            
+            // 设置直接链接
+            audioDirectLink.href = audioUrl;
+            
+            // 设置过期时间
+            if (audioData.expires_at) {
+                const expiryDate = new Date(audioData.expires_at);
+                const now = new Date();
+                const timeLeft = expiryDate - now;
+                const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (timeLeft > 0) {
+                    audioExpiry.textContent = `${hoursLeft}小时${minutesLeft}分钟`;
+                } else {
+                    audioExpiry.textContent = '已过期';
+                }
+            }
+            
+            // 显示音频区域
+            audioSection.style.display = 'block';
+            
+            // 滚动到音频区域
+            audioSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 隐藏音频播放器
+        function hideAudioPlayer() {
+            document.getElementById('audio-section').style.display = 'none';
+        }
+        
+        // 测试音频播放器
+        function testAudioPlayer() {
+            const token = document.getElementById('test-token').value.trim();
+            
+            if (!token) {
+                alert('请输入一个有效的token');
+                return;
+            }
+            
+            // 模拟音频数据
+            const mockAudioData = {
+                access_token: token,
+                expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                success: true
+            };
+            
+            // 显示音频播放器
+            showAudioPlayer(mockAudioData);
+            
+            // 更新状态
+            document.getElementById('audio-status').textContent = '测试模式 - 准备就绪';
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('音频播放器测试页面加载完成');
+        });
+    </script>
+</body>
+</html>

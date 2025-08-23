@@ -6,6 +6,136 @@ body {
     background: #f5f5f5;
 }
 
+/* 音频播放器样式 */
+.audio-container {
+    background: #f8f9fa;
+    border: 2px solid #28a745;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);
+}
+
+.audio-container h3 {
+    color: #28a745;
+    margin-top: 0;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.audio-info {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border: 1px solid #e9ecef;
+}
+
+.audio-info p {
+    margin: 8px 0;
+    color: #495057;
+}
+
+.audio-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+.audio-btn {
+    background: #007bff;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+    width: auto;
+    min-width: 80px;
+}
+
+.audio-btn:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+}
+
+.audio-btn:active {
+    transform: translateY(0);
+}
+
+#play-audio {
+    background: #28a745;
+}
+
+#play-audio:hover {
+    background: #1e7e34;
+}
+
+#pause-audio {
+    background: #ffc107;
+    color: #212529;
+}
+
+#pause-audio:hover {
+    background: #e0a800;
+}
+
+#stop-audio {
+    background: #dc3545;
+}
+
+#stop-audio:hover {
+    background: #c82333;
+}
+
+#download-audio {
+    background: #6c757d;
+}
+
+#download-audio:hover {
+    background: #5a6268;
+}
+
+/* 音频元素样式 */
+#report-audio {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* WebSocket 状态指示器 */
+#websocket-status {
+    text-align: right;
+    font-size: 12px;
+}
+
+#ws-indicator {
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .audio-controls {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .audio-btn {
+        width: 100%;
+        max-width: 200px;
+    }
+    
+    #websocket-status {
+        text-align: center;
+        margin-top: 15px;
+    }
+}
+
 .container {
     max-width: 600px;
     margin: auto;

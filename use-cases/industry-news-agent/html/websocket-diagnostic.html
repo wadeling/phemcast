@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 连接诊断 - Industry News Agent</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 WebSocket 连接诊断</h1>
+        
+        <div class="diagnostic-panel">
+            <h3>📊 连接状态</h3>
+            <div class="status-grid">
+                <div class="status-item">
+                    <strong>当前页面:</strong> <span id="current-page">-</span>
+                </div>
+                <div class="status-item">
+                    <strong>WebSocket 地址:</strong> <span id="ws-url">-</span>
+                </div>
+                <div class="status-item">
+                    <strong>连接状态:</strong> <span id="connection-status">未连接</span>
+                </div>
+                <div class="status-item">
+                    <strong>错误代码:</strong> <span id="error-code">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="diagnostic-panel">
+            <h3>🔌 连接测试</h3>
+            <div class="test-buttons">
+                <button onclick="testDirectConnection()" class="test-btn">🚀 直接连接后端 (8000)</button>
+                <button onclick="testNginxProxy()" class="test-btn">🌐 通过 Nginx 连接 (80)</button>
+                <button onclick="testLocalhost()" class="test-btn">🏠 本地连接</button>
+                <button onclick="clearResults()" class="test-btn">🗑️ 清空结果</button>
+            </div>
+        </div>
+        
+        <div class="diagnostic-panel">
+            <h3>📋 测试结果</h3>
+            <div id="test-results" class="test-results">
+                <div class="result-entry">等待测试...</div>
+            </div>
+        </div>
+        
+        <div class="diagnostic-panel">
+            <h3>💡 诊断建议</h3>
+            <div class="diagnostic-tips">
+                <div class="tip">
+                    <strong>问题 1:</strong> 如果直接连接后端 (8000) 成功，但通过 Nginx (80) 失败，说明 Nginx 配置问题
+                </div>
+                <div class="tip">
+                    <strong>问题 2:</strong> 如果所有连接都失败，检查后端服务是否运行
+                </div>
+                <div class="tip">
+                    <strong>问题 3:</strong> 如果连接成功但消息不传递，检查 WebSocket 端点配置
+                </div>
+            </div>
+        </div>
+        
+        <div class="features">
+            <strong>使用方法:</strong><br>
+            • 点击不同的测试按钮测试各种连接方式<br>
+            • 查看测试结果了解连接状态<br>
+            • 根据诊断建议解决问题
+        </div>
+    </div>
+    
+    <script>
+        let currentWebSocket = null;
+        let testResults = [];
+        
+        // 页面加载时显示当前信息
+        document.addEventListener('DOMContentLoaded', function() {
+            updatePageInfo();
+        });
+        
+        function updatePageInfo() {
+            document.getElementById('current-page').textContent = window.location.href;
+            document.getElementById('ws-url').textContent = getWebSocketUrl();
+        }
+        
+        function getWebSocketUrl() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            return `${protocol}//${host}/ws`;
+        }
+        
+        function testDirectConnection() {
+            testWebSocketConnection('ws://localhost:8000/ws', '直接连接后端 (8000)');
+        }
+        
+        function testNginxProxy() {
+            testWebSocketConnection('ws://localhost/ws', '通过 Nginx 连接 (80)');
+        }
+        
+        function testLocalhost() {
+            testWebSocketConnection('ws://127.0.0.1:8000/ws', '本地连接 (127.0.0.1)');
+        }
+        
+        function testWebSocketConnection(wsUrl, description) {
+            addTestResult(`🔄 开始测试: ${description}`, 'info');
+            addTestResult(`📍 连接地址: ${wsUrl}`, 'info');
+            
+            try {
+                // 关闭之前的连接
+                if (currentWebSocket) {
+                    currentWebSocket.close();
+                }
+                
+                currentWebSocket = new WebSocket(wsUrl);
+                
+                currentWebSocket.onopen = function(event) {
+                    addTestResult(`✅ 连接成功: ${description}`, 'success');
+                    updateConnectionStatus('已连接', '#28a745');
+                    
+                    // 发送测试消息
+                    setTimeout(() => {
+                        try {
+                            currentWebSocket.send(JSON.stringify({type: 'ping'}));
+                            addTestResult(`📤 发送 ping 消息成功`, 'success');
+                        } catch (e) {
+                            addTestResult(`❌ 发送消息失败: ${e.message}`, 'error');
+                        }
+                    }, 1000);
+                };
+                
+                currentWebSocket.onmessage = function(event) {
+                    addTestResult(`📨 收到消息: ${event.data}`, 'success');
+                };
+                
+                currentWebSocket.onclose = function(event) {
+                    addTestResult(`🔌 连接关闭: 代码 ${event.code}, 原因: ${event.reason || '无'}`, 'warning');
+                    updateConnectionStatus('已断开', '#dc3545');
+                    updateErrorCode(event.code);
+                };
+                
+                currentWebSocket.onerror = function(error) {
+                    addTestResult(`❌ 连接错误: ${error.type}`, 'error');
+                    updateConnectionStatus('连接错误', '#dc3545');
+                };
+                
+                // 设置超时
+                setTimeout(() => {
+                    if (currentWebSocket.readyState === WebSocket.CONNECTING) {
+                        addTestResult(`⏰ 连接超时 (5秒)`, 'error');
+                        currentWebSocket.close();
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                addTestResult(`❌ 创建连接失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function addTestResult(message, type) {
+            const timestamp = new Date().toLocaleTimeString();
+            const resultEntry = document.createElement('div');
+            resultEntry.className = `result-entry result-${type}`;
+            resultEntry.textContent = `[${timestamp}] ${message}`;
+            
+            const resultsContainer = document.getElementById('test-results');
+            resultsContainer.appendChild(resultEntry);
+            
+            // 自动滚动到底部
+            resultsContainer.scrollTop = resultsContainer.scrollHeight;
+            
+            // 保存到结果数组
+            testResults.push({timestamp, message, type});
+        }
+        
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '<div class="result-entry">结果已清空</div>';
+            testResults = [];
+        }
+        
+        function updateConnectionStatus(status, color) {
+            const statusElement = document.getElementById('connection-status');
+            if (statusElement) {
+                statusElement.textContent = status;
+                statusElement.style.color = color;
+            }
+        }
+        
+        function updateErrorCode(code) {
+            const codeElement = document.getElementById('error-code');
+            if (codeElement) {
+                codeElement.textContent = code;
+            }
+        }
+    </script>
+    
+    <style>
+        .diagnostic-panel {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .status-item {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .test-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .test-btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .test-btn:hover {
+            background: #0056b3;
+        }
+        
+        .test-results {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .result-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .result-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .result-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .result-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .result-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .diagnostic-tips {
+            margin-top: 15px;
+        }
+        
+        .tip {
+            background: white;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        
+        @media (max-width: 768px) {
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .test-buttons {
+                flex-direction: column;
+            }
+            
+            .test-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</body>
+</html>

@@ -140,7 +140,7 @@ async function checkStatus(taskId) {
                     Processing Time: ~${status.processing_time || 'Unknown'}<br><br>
                     <strong>📄 Download Reports:</strong><br>
                     ${status.report_paths ? Object.keys(status.report_paths).map(k => `
-                        <a href="/api/download/${taskId}/${k}" 
+                        <a href="/download/${taskId}/${k}" 
                            target="_blank" class="download-link">📥 Download ${k.toUpperCase()} Report</a><br>
                     `).join('') : ''}
                     ${status.email_sent ? '<br>📧 Report sent to email' : ''}

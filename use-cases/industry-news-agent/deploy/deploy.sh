@@ -117,16 +117,17 @@ show_logs() {
 build_and_start() {
     print_status "Building and starting Industry News Agent..."
     
-    # Check if images exist
-    if ! docker images | grep -q "industry-news-agent-backend"; then
-        print_warning "Docker images not found. Please run 'make build-all' from the parent directory first."
-        print_status "Or manually build images using:"
-        print_status "  make build-frontend"
-        print_status "  make build-backend"
+    # Build the backend image
+    print_status "Building backend image..."
+    docker-compose build backend
+    
+    if [ $? -eq 0 ]; then
+        print_success "Backend image built successfully!"
+        start_app
+    else
+        print_error "Failed to build backend image!"
         return 1
     fi
-    
-    start_app
 }
 
 # Function to clean up everything

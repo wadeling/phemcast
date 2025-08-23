@@ -254,6 +254,7 @@ class TencentCloudEmailService:
             <ul>
                 <li><strong>PDF Report:</strong> Full PDF with professional formatting</li>
                 <li><strong>Markdown Report:</strong> Raw content in markdown format</li>
+                {f'<li><strong>Audio Report:</strong> <a href="{metadata.get("audio_url", "")}" style="color: #2c5aa0;">🎧 Listen to Report Summary</a> (Valid for 24 hours)</li>' if metadata.get("audio_url") else ""}
             </ul>
         </div>
         
@@ -285,6 +286,7 @@ This week's report covers innovations and developments across the industry.
 Attached files:
 - PDF Report: Comprehensive formatted report
 - Markdown Report: Raw data in markdown format
+{f'- Audio Report: Listen to report summary (Valid for 24 hours): {metadata.get("audio_url", "")}' if metadata.get("audio_url") else ""}
 
 Report includes:
 {chr(10).join([f"- {company}" for company in companies][:5])}
