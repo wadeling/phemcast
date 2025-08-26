@@ -99,15 +99,27 @@ class IndustryNewsAgent:
             config = {"configurable": {"thread_id": f"background_{datetime.now().timestamp()}"}}
             final_state = await self.graph.ainvoke(initial_state, config=config)
             
+            # 获取报告路径，包括音频
+            report_paths = {}
+            if final_state.get("report_path_md"):
+                report_paths["markdown"] = final_state.get("report_path_md", "")
+            if final_state.get("report_path_pdf"):
+                report_paths["pdf"] = final_state.get("report_path_pdf", "")
+
+            if final_state.get("report_path_audio"):
+                report_paths["audio"] = final_state.get("report_path_audio", "")
+            else:
+                report_paths["audio"] = ""
+                logger.warning(f"No audio data found in final_state: {final_state}")
+           
+            logger.info(f"Final report_paths: {report_paths}")
+            
             return {
                 "status": final_state.get("processing_status", "completed"),
                 "errors": final_state.get("errors", []),
                 "total_articles": len(final_state.get("articles", [])),
                 "total_urls": final_state.get("total_urls", 0),
-                "report_paths": {
-                    "markdown": final_state.get("report_path_md", ""),
-                    "pdf": final_state.get("report_path_pdf", "")
-                },
+                "report_paths": report_paths,
                 "email_sent": final_state.get("email_sent", False),
                 "total_tokens_used": final_state.get("total_tokens_used", 0),
                 "logs": final_state.get("logs", []),
@@ -303,6 +315,7 @@ class IndustryNewsAgent:
             logger.warning("No articles available for report generation")
             state["report_path_md"] = ""
             state["report_path_pdf"] = ""
+            state["report_path_audio"] = {}
             state["processing_status"] = "reports_generated"
             return state
         
@@ -327,20 +340,42 @@ class IndustryNewsAgent:
             )
             
             logger.info(f"ReportGenerator returned paths: {report_paths}")
+            logger.info(f"Audio data in report_paths: {report_paths.get('audio', 'Not found')}")
             
             processing_time = (datetime.now() - start_time).total_seconds()
-            state.update({
-                "report_path_md": report_paths.get("markdown", ""),
-                "report_path_pdf": report_paths.get("pdf", ""),
-                "processing_status": "reports_generated",
-                "logs": state.get("logs", []) + [
-                    f"✅ Reports generated: {list(report_paths.keys())}",
-                    f"⏱️ Report generation time: {processing_time:.1f}s"
-                ],
-                "processing_time": processing_time
-            })
+            # 获取音频数据
+            audio_data = report_paths.get("audio", {})
+            if audio_data and isinstance(audio_data, dict) and audio_data.get("success"):
+                logger.info(f"Audio generation successful: {audio_data.get('access_token', 'No token')}")
+                state.update({
+                    "report_path_md": report_paths.get("markdown", ""),
+                    "report_path_pdf": report_paths.get("pdf", ""),
+                    "report_path_audio": audio_data.get("audio_path", ""),  # 保存完整的音频数据字典
+                    "processing_status": "reports_generated",
+                    "logs": state.get("logs", []) + [
+                        f"✅ Reports generated: {list(report_paths.keys())}",
+                        f"🎧 Audio report: {audio_data.get('access_token', 'No token')}",
+                        f"⏱️ Report generation time: {processing_time:.1f}s"
+                    ],
+                    "processing_time": processing_time
+                })
+            else:
+                logger.warning(f"Audio generation failed or not available: {audio_data}")
+                state.update({
+                    "report_path_md": report_paths.get("markdown", ""),
+                    "report_path_pdf": report_paths.get("pdf", ""),
+                    "report_path_audio": "",  # 空字典表示无音频
+                    "processing_status": "reports_generated",
+                    "logs": state.get("logs", []) + [
+                        f"✅ Reports generated: {list(report_paths.keys())}",
+                        f"⚠️ No audio report generated",
+                        f"⏱️ Report generation time: {processing_time:.1f}s"
+                    ],
+                    "processing_time": processing_time
+                })
             
             logger.info(f"Generated reports: {list(report_paths.keys())}")
+            logger.info(f"State after report generation - report_path_audio: {state.get('report_path_audio')}")
             
         except Exception as e:
             logger.error(f"Report generation failed: {str(e)}")
@@ -356,6 +391,7 @@ class IndustryNewsAgent:
         """Send reports via email."""
         report_path_md = state.get("report_path_md", "")
         report_path_pdf = state.get("report_path_pdf", "")
+        report_path_audio = state.get("report_path_audio", "")
         recipients = state.get("email_recipients", [])
         
         # Create report_paths dict for compatibility with email service
@@ -364,6 +400,11 @@ class IndustryNewsAgent:
             report_paths["markdown"] = report_path_md
         if report_path_pdf:
             report_paths["pdf"] = report_path_pdf
+        if report_path_audio:
+            report_paths["audio"] = report_path_audio
+        
+        # 添加音频数据支持
+        logger.info(f"Audio data added to email report_paths: {report_path_audio}")
         
         # Add more detailed logging
         logger.info(f"=== EMAIL SENDING STEP ===")
@@ -374,6 +415,7 @@ class IndustryNewsAgent:
         logger.info(f"Ready to send emails to recipients: {recipients}")
         logger.info(f"Report path MD: {report_path_md}")
         logger.info(f"Report path PDF: {report_path_pdf}")
+        logger.info(f"Report path Audio: {report_path_audio}")
         logger.info(f"Report paths dict: {report_paths}")
         logger.info(f"Report paths empty: {not report_paths}")
 

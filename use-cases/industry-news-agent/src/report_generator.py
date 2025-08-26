@@ -346,7 +346,76 @@ class ReportGenerator:
         return filepath
     
     async def _generate_audio_report(self, data: Dict, timestamp: str) -> Dict:
-        """Generate audio report using TTS service."""
+        """Generate audio report using TTS service with AI-generated summary."""
+        try:
+            # 生成报告ID
+            report_id = f"report_{timestamp}"
+            
+            # 准备文章数据用于摘要生成
+            articles_for_summary = []
+            articles = data.get("articles", [])
+            
+            if not articles:
+                logger.warning("No articles found in data, using fallback method")
+                return await self._fallback_audio_generation(data, report_id)
+            
+            for article in articles:
+                try:
+                    # 安全地获取文章属性
+                    title = getattr(article, "title", None)
+                    content = getattr(article, "content", None)
+                    
+                    # 验证必要属性
+                    if title and content:
+                        articles_for_summary.append({
+                            "title": title,
+                            "content": content
+                        })
+                    else:
+                        logger.warning(f"Article missing required attributes: title={title is not None}, content={content is not None}")
+                        
+                except Exception as e:
+                    logger.warning(f"Error processing article: {e}")
+                    continue
+            
+            if not articles_for_summary:
+                logger.warning("No valid articles processed, using fallback method")
+                return await self._fallback_audio_generation(data, report_id)
+            
+            logger.info(f"Preparing {len(articles_for_summary)} articles for AI summary generation")
+            
+            # 使用新的摘要生成方法
+            if hasattr(self.tts_service, 'generate_summary_from_articles'):
+                # 使用新的AI摘要生成功能
+                audio_result = await self.tts_service.generate_summary_from_articles(
+                    articles=articles_for_summary,
+                    report_id=report_id
+                )
+                
+                if audio_result.get("success"):
+                    logger.info(f"AI-generated audio summary created successfully")
+                    logger.debug(f"Summary length: {audio_result.get('summary_length', 0)} characters")
+                    logger.debug(f"Articles processed: {audio_result.get('articles_count', 0)}")
+                else:
+                    logger.warning(f"AI summary generation failed: {audio_result.get('error')}")
+                    # 回退到原来的方法
+                    audio_result = await self._fallback_audio_generation(data, report_id)
+                
+                return audio_result
+            else:
+                # 如果TTS服务不支持新功能，使用原来的方法
+                logger.info("Using fallback audio generation method")
+                return await self._fallback_audio_generation(data, report_id)
+            
+        except Exception as e:
+            logger.error(f"Error generating audio report: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def _fallback_audio_generation(self, data: Dict, report_id: str) -> Dict:
+        """Fallback audio generation method using original logic."""
         try:
             # 生成报告摘要文本用于TTS
             summary_text = self._generate_executive_summary(data)
@@ -360,9 +429,6 @@ class ReportGenerator:
             # 组合完整的TTS文本
             full_text = f"{summary_text}。{trends_text}。{insights_text}。"
             
-            # 生成报告ID
-            report_id = f"report_{timestamp}"
-            
             # 调用TTS服务生成语音
             audio_result = await self.tts_service.generate_speech(
                 text=full_text,
@@ -372,7 +438,7 @@ class ReportGenerator:
             return audio_result
             
         except Exception as e:
-            logger.error(f"Error generating audio report: {e}")
+            logger.error(f"Error in fallback audio generation: {e}")
             return {
                 "success": False,
                 "error": str(e)

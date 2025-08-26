@@ -98,7 +98,6 @@
                     </audio>
                     <div class="audio-info">
                         <p><strong>状态:</strong> <span id="audio-status">准备就绪</span></p>
-                        <p><strong>有效期:</strong> <span id="audio-expiry">24小时</span></p>
                         <p><strong>直接链接:</strong> <a id="audio-direct-link" href="" target="_blank" style="color: #007bff;">在新窗口打开</a></p>
                     </div>
                     <div class="audio-controls">
@@ -115,6 +114,7 @@
             <strong>Features:</strong> AI-powered analysis • Smart insights • PDF & Markdown reports • Rate-limited scraping • 🎧 Audio reports<br>
             <strong>Quick Start:</strong> The form is pre-filled with 1 article for quick testing<br>
             <strong>Quick Test:</strong> <a href="/static/quick-test.html" target="_blank">🚀 Try the Quick Test Page</a> for even faster testing<br>
+            <strong>Audio Test:</strong> <a href="test_audio_player.html" target="_blank">🧪 音频播放器功能测试</a><br>
             <strong>API:</strong> POST to /api/generate-report for programmatic access
         </div>
     </div>
@@ -238,50 +238,7 @@
             }
         }
         
-        // 显示音频播放器
-        function showAudioPlayer(audioData) {
-            const audioSection = document.getElementById('audio-section');
-            const audioSource = document.getElementById('audio-source');
-            const audioDirectLink = document.getElementById('audio-direct-link');
-            const audioExpiry = document.getElementById('audio-expiry');
-            
-            // 设置音频源
-            const audioUrl = `/audio/${audioData.access_token}`;
-            audioSource.src = audioUrl;
-            
-            // 重新加载音频元素
-            const audio = document.getElementById('report-audio');
-            audio.load();
-            
-            // 设置直接链接
-            audioDirectLink.href = audioUrl;
-            
-            // 设置过期时间
-            if (audioData.expires_at) {
-                const expiryDate = new Date(audioData.expires_at);
-                const now = new Date();
-                const timeLeft = expiryDate - now;
-                const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
-                const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                
-                if (timeLeft > 0) {
-                    audioExpiry.textContent = `${hoursLeft}小时${minutesLeft}分钟`;
-                } else {
-                    audioExpiry.textContent = '已过期';
-                }
-            }
-            
-            // 显示音频区域
-            audioSection.style.display = 'block';
-            
-            // 滚动到音频区域
-            audioSection.scrollIntoView({ behavior: 'smooth' });
-        }
-        
-        // 隐藏音频播放器
-        function hideAudioPlayer() {
-            document.getElementById('audio-section').style.display = 'none';
-        }
+        // 音频播放器函数已移动到 app.js 中
     </script>
 </body>
 </html>

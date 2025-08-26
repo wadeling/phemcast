@@ -7,6 +7,9 @@ langchain>=0.2.0
 langchain-openai>=0.1.0
 langchain-community>=0.2.0
 
+# OpenAI API (for audio summary generation)
+openai>=1.0.0
+
 # Web scraping and HTTP requests
 aiohttp>=3.9.0
 beautifulsoup4>=4.12.0

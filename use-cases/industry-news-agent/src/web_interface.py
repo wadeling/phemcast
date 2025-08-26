@@ -431,7 +431,8 @@ async def download_report(task_id: str, format_type: str):
     
     media_type_map = {
         "markdown": "text/markdown",
-        "pdf": "application/pdf"
+        "pdf": "application/pdf",
+        "audio": "audio/mpeg"
     }
     
     return FileResponse(
@@ -490,6 +491,7 @@ async def _process_report_task(
             "report_paths": result.get("report_paths", {}),
             "report_path_md": result.get("report_paths", {}).get("markdown", ""),
             "report_path_pdf": result.get("report_paths", {}).get("pdf", ""),
+            "report_path_audio": result.get("report_paths", {}).get("audio", ""),
             "total_articles": result.get("total_articles", 0),
             "total_urls": result.get("total_urls", 0),
             "processing_time": result.get("processing_time", 0),

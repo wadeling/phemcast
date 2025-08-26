@@ -119,13 +119,12 @@ async function checkStatus(taskId) {
                     <strong>✅ Completed!</strong><br>
                     Analyzed: ${status.total_articles || 0} articles<br>
                     ${status.report_paths ? Object.keys(status.report_paths).map(k => {
-                        if (k === 'audio' && status.report_paths[k] && status.report_paths[k].success) {
+                        if (k === 'audio' && status.report_paths[k]) {
                             return `
                                 <div style="margin: 10px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
                                     <strong>🎧 Audio Report Available</strong><br>
                                     <small style="color: #666;">
-                                        ⏰ Valid for 24 hours • 
-                                        <a href="/audio/${status.report_paths[k].access_token}" target="_blank" style="color: #007bff;">Direct Link</a>
+                                        <a href="/download/${taskId}/audio" target="_blank" style="color: #007bff;">Direct Link</a>
                                     </small>
                                 </div>
                             `;
@@ -142,12 +141,18 @@ async function checkStatus(taskId) {
             `;
             
             // 检查是否有音频文件，如果有则显示音频播放器
-            if (status.report_paths && status.report_paths.audio && status.report_paths.audio.success) {
+            console.log('Checking audio data:', status.report_paths);
+            if (status.report_paths && status.report_paths.audio) {
+                console.log('Audio data found:', status.report_paths.audio);
                 // 调用全局函数显示音频播放器
                 if (typeof showAudioPlayer === 'function') {
-                    showAudioPlayer(status.report_paths.audio);
+                    console.log('Calling showAudioPlayer function');
+                    showAudioPlayer(`/download/${taskId}/audio`);
+                } else {
+                    console.error('showAudioPlayer function not found');
                 }
             } else {
+                console.log('No audio data found or audio generation failed');
                 // 如果没有音频文件，隐藏音频播放器
                 if (typeof hideAudioPlayer === 'function') {
                     hideAudioPlayer();
@@ -311,13 +316,12 @@ function updateTaskStatusFromWebSocket(message) {
                 <strong>✅ Completed!</strong><br>
                 Analyzed: ${message.data?.total_articles || 0} articles<br>
                 ${message.data?.report_paths ? Object.keys(message.data.report_paths).map(k => {
-                    if (k === 'audio' && message.data.report_paths[k] && message.data.report_paths[k].success) {
+                    if (k === 'audio' && message.data.report_paths[k]) {
                         return `
                             <div style="margin: 10px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
                                 <strong>🎧 Audio Report Available</strong><br>
                                 <small style="color: #666;">
-                                    ⏰ Valid for 24 hours • 
-                                    <a href="/audio/${message.data.report_paths[k].access_token}" target="_blank" style="color: #007bff;">Direct Link</a>
+                                    <a href="/download/${currentTaskId}/audio" target="_blank" style="color: #007bff;">Direct Link</a>
                                 </small>
                             </div>
                         `;
@@ -334,10 +338,16 @@ function updateTaskStatusFromWebSocket(message) {
         `;
         
         // Show audio player if available
-        if (message.data?.report_paths?.audio?.success) {
+        console.log('WebSocket audio data:', message.data?.report_paths?.audio);
+        if (message.data?.report_paths?.audio) {
+            console.log('WebSocket: Audio data found, calling showAudioPlayer');
             if (typeof showAudioPlayer === 'function') {
-                showAudioPlayer(message.data.report_paths.audio);
+                showAudioPlayer(`/download/${currentTaskId}/audio`);
+            } else {
+                console.error('WebSocket: showAudioPlayer function not found');
             }
+        } else {
+            console.log('WebSocket: No audio data or audio generation failed');
         }
         
         // Hide loading indicator
@@ -366,6 +376,45 @@ function updateTaskStatusFromWebSocket(message) {
                 <small>Task is currently being processed...</small>
             </div>
         `;
+    }
+}
+
+// 音频播放器相关函数
+function showAudioPlayer(audioPath) {
+    const audioSection = document.getElementById('audio-section');
+    const audioSource = document.getElementById('audio-source');
+    const audioDirectLink = document.getElementById('audio-direct-link');
+    
+    if (!audioSection || !audioSource || !audioDirectLink) {
+        console.error('Audio player elements not found');
+        return;
+    }
+    
+    // 设置音频源
+    audioSource.src = audioPath;
+    
+    // 重新加载音频元素
+    const audio = document.getElementById('report-audio');
+    if (audio) {
+        audio.load();
+    }
+    
+    // 设置直接链接
+    audioDirectLink.href = audioPath;
+    
+    // 显示音频区域
+    audioSection.style.display = 'block';
+    
+    // 滚动到音频区域
+    audioSection.scrollIntoView({ behavior: 'smooth' });
+    
+    console.log('Audio player shown with path:', audioPath);
+}
+
+function hideAudioPlayer() {
+    const audioSection = document.getElementById('audio-section');
+    if (audioSection) {
+        audioSection.style.display = 'none';
     }
 }
 

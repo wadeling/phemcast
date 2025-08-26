@@ -169,6 +169,7 @@ class AgentState(TypedDict, total=False):
     weekly_summary: str
     report_path_md: Optional[str]
     report_path_pdf: Optional[str]
+    report_path_audio: Optional[str]
     task_id: str
     processing_status: str
     progress: Dict[str, int]

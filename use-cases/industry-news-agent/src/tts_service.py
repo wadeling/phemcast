@@ -4,7 +4,7 @@ import json
 import requests
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 import hashlib
 import secrets
@@ -57,6 +57,208 @@ class MinimaxiTTSService:
     def _generate_access_token(self) -> str:
         """Generate secure access token for audio files."""
         return secrets.token_urlsafe(32)
+    
+    def _load_audio_prompt(self) -> str:
+        """Load audio prompt from local file."""
+        try:
+            prompt_file = Path(__file__).parent.parent / "audio_prompt.txt"
+            if prompt_file.exists():
+                with open(prompt_file, 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+            else:
+                logger.warning(f"Audio prompt file not found: {prompt_file}")
+                return self._get_default_prompt()
+        except Exception as e:
+            logger.error(f"Error loading audio prompt: {e}")
+            return self._get_default_prompt()
+    
+    def _get_default_prompt(self) -> str:
+        """Get default audio prompt if file not found."""
+        return """你是一个专业的行业分析师，请根据以下博客文章内容，生成一个简洁、清晰的语音播报中文摘要。
+
+要求：
+1. 总结文章的核心观点和关键信息
+2. 使用简洁明了的语言，适合语音播报
+3. 保持逻辑清晰，结构完整
+4. 长度控制在600-700字之间
+5. 语言风格要专业但不失亲和力
+
+请基于以下文章内容生成中文摘要：
+
+`{articles_content}`
+
+请直接返回摘要内容，不要添加任何额外的说明或格式。"""
+    
+    def _format_articles_for_summary(self, articles: List[Dict[str, Any]]) -> str:
+        """Format articles list into text for summary generation."""
+        if not articles:
+            return "暂无文章内容"
+        
+        formatted_articles = []
+        for i, article in enumerate(articles, 1):
+            title = article.get('title', '无标题')
+            content = article.get('content', '无内容')
+            
+            # 清理内容，移除多余的空白字符
+            content = ' '.join(content.split())
+            
+            # 限制内容长度，避免过长
+            if len(content) > 16000:
+                content = content[:16000] + "..."
+            
+            formatted_articles.append(f"文章{i}：{title}\n内容：{content}")
+        
+        return "\n\n".join(formatted_articles)
+    
+    async def generate_summary_from_articles(
+        self, 
+        articles: List[Dict[str, Any]], 
+        report_id: str
+    ) -> Dict[str, Any]:
+        """
+        Generate summary from articles using AI model, then convert to speech.
+        
+        Args:
+            articles: List of article dictionaries with 'title' and 'content'
+            report_id: Unique identifier for the report
+            
+        Returns:
+            Dictionary containing summary text, audio info, and success status
+        """
+        try:
+            logger.info(f"Generating summary from {len(articles)} articles for report {report_id}")
+            
+            # 1. 格式化文章内容
+            articles_text = self._format_articles_for_summary(articles)
+            logger.debug(f"Formatted articles text length: {len(articles_text)}")
+            
+            # 2. 加载提示词
+            prompt_template = self._load_audio_prompt()
+            prompt = prompt_template.format(articles_content=articles_text)
+            
+            # 3. 调用大模型生成摘要
+            summary = await self._call_ai_model_for_summary(prompt)
+            if not summary:
+                raise Exception("Failed to generate summary from AI model")
+            
+            logger.info(f"Generated summary length: {len(summary)} characters")
+            logger.debug(f"Summary content: {summary[:200]}...")
+            
+            # 4. 将摘要转换为语音
+            audio_result = await self.generate_speech(summary, report_id)
+            
+            if audio_result.get('success'):
+                # 添加摘要信息到结果
+                audio_result['summary'] = summary
+                audio_result['articles_count'] = len(articles)
+                audio_result['summary_length'] = len(summary)
+                
+                logger.info(f"Successfully generated audio summary for report {report_id}")
+                return audio_result
+            else:
+                logger.error(f"Failed to generate audio for summary: {audio_result.get('error')}")
+                return {
+                    'success': False,
+                    'error': f"Audio generation failed: {audio_result.get('error')}",
+                    'summary': summary,
+                    'articles_count': len(articles)
+                }
+                
+        except Exception as e:
+            logger.error(f"Failed to generate summary from articles: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'articles_count': len(articles) if 'articles' in locals() else 0
+            }
+    
+    async def _call_ai_model_for_summary(self, prompt: str) -> Optional[str]:
+        """
+        Call AI model to generate summary from prompt.
+        
+        Args:
+            prompt: Formatted prompt with articles content
+            
+        Returns:
+            Generated summary text or None if failed
+        """
+        try:
+            # 使用 OpenAI API 生成摘要
+            if hasattr(self.settings, 'openai_api_key') and self.settings.openai_api_key:
+                return await self._call_openai_api(prompt)
+            
+            # 如果没有配置 OpenAI API，使用简单的文本处理（fallback）
+            else:
+                logger.warning("OpenAI API not configured, using fallback text processing")
+                return self._fallback_text_summary(prompt)
+                
+        except Exception as e:
+            logger.error(f"Error calling AI model: {e}")
+            return None
+    
+    async def _call_openai_api(self, prompt: str) -> Optional[str]:
+        """Call OpenAI API for summary generation using new 1.0.0+ interface."""
+        try:
+            import openai
+            
+            # 创建 OpenAI 客户端（新版本）
+            client = openai.OpenAI(api_key=self.settings.openai_api_key)
+            
+            # 调用API（新版本）
+            response = client.chat.completions.create(
+                model=self.settings.openai_model,
+                messages=[
+                    {"role": "system", "content": "你是一个专业的行业分析师，擅长生成简洁的语音播报摘要。"},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=15000,  # 增加token数量以支持600-700字的摘要
+                #temperature=0.6
+                temperature=1.3
+            )
+            
+            summary = response.choices[0].message.content.strip()
+            logger.info(f"OpenAI API summary generated successfully.response: {response}")
+            return summary
+            
+        except ImportError:
+            logger.error("OpenAI library not installed")
+            return None
+        except Exception as e:
+            logger.error(f"OpenAI API error: {e}")
+            return None
+    
+    def _fallback_text_summary(self, prompt: str) -> str:
+        """Fallback text processing when AI model is not available."""
+        try:
+            # 简单的文本处理：提取关键信息
+            articles_text = prompt.split("`{articles_content}`")[1] if "`{articles_content}`" in prompt else prompt
+            
+            # 提取标题和内容
+            lines = articles_text.split('\n')
+            titles = []
+            contents = []
+            
+            for line in lines:
+                if line.startswith('文章'):
+                    titles.append(line)
+                elif line.startswith('内容：'):
+                    contents.append(line[3:])  # 移除"内容："前缀
+            
+            # 生成简单摘要
+            if titles and contents:
+                summary = f"本次报告分析了{len(titles)}篇文章。"
+                summary += " ".join([f"文章《{title.split('：')[1]}》主要讨论了{content[:100]}等内容。" 
+                                   for title, content in zip(titles, contents)])
+                summary += "这些文章反映了当前行业的发展趋势和重要动态。"
+            else:
+                summary = "本次报告分析了多篇行业相关文章，涵盖了技术发展、市场趋势等多个方面。"
+            
+            logger.info("Generated fallback summary using text processing")
+            return summary
+            
+        except Exception as e:
+            logger.error(f"Fallback summary generation error: {e}")
+            return "本次报告分析了多篇行业相关文章，内容涵盖技术发展、市场趋势等多个方面。"
     
     def _create_temp_access(self, audio_path: Path, token: str) -> Path:
         """Create temporary access file with token."""
