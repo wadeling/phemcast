@@ -20,7 +20,8 @@ class TTSVoiceConfig:
     
     def __init__(self):
         # 成熟女性语音配置 - 使用Minimaxi支持的语音ID
-        self.voice_id = "female-chengshu"  # 默认使用成熟女声
+        # self.voice_id = "female-chengshu"  # 默认使用成熟女声
+        self.voice_id = "phemcastvoice"  # siyu voice
         self.speed = 1     # 语速 (Minimaxi期望整数)
         self.vol = 1       # 音量 (Minimaxi期望整数)
         self.pitch = 0     # 音调 (Minimaxi期望整数)
