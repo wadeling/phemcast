@@ -63,3 +63,6 @@ flake8>=6.1.0
 # Additional utilities
 python-dateutil>=2.8.0
 typing-extensions>=4.8.0 
+
+# Task Scheduling
+apscheduler==3.10.4 

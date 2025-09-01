@@ -182,3 +182,87 @@ class AgentState(TypedDict, total=False):
     total_articles: int
     email_sent: bool
     processing_time: float
+
+
+class ScheduledTask(BaseModel):
+    """Scheduled task model for automated report generation."""
+    
+    id: Optional[str] = None
+    task_name: str = Field(..., description="Task name for identification")
+    user_id: str = Field(..., description="User who created the task")
+    urls: List[str] = Field(..., description="Company blog URLs to analyze")
+    email_recipients: List[str] = Field(default_factory=list, description="Email addresses for report delivery")
+    max_articles: int = Field(default=5, ge=1, le=20, description="Articles per blog to analyze")
+    
+    # Schedule configuration
+    schedule_type: str = Field(..., pattern="^(daily|weekly|monthly)$", description="Schedule frequency")
+    schedule_time: str = Field(..., description="Time of day (HH:MM format)")
+    schedule_time_utc: str = Field(..., description="UTC Time of day (HH:MM format)")
+    schedule_day: Optional[str] = Field(None, description="Day of week (for weekly) or day of month (for monthly)")
+    
+    # Task status
+    is_active: bool = Field(default=True, description="Whether the task is currently active")
+    last_run: Optional[datetime] = Field(None, description="Last execution time")
+    next_run: Optional[datetime] = Field(None, description="Next scheduled execution time")
+    
+    # Metadata
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    
+    @validator('schedule_time')
+    def validate_schedule_time(cls, v):
+        """Validate time format HH:MM."""
+        try:
+            from datetime import datetime
+            datetime.strptime(v, '%H:%M')
+            return v
+        except ValueError:
+            raise ValueError('Time must be in HH:MM format (e.g., 09:30)')
+    
+    @validator('schedule_day')
+    def validate_schedule_day(cls, v, values):
+        """Validate schedule day based on schedule type."""
+        if 'schedule_type' in values:
+            if values['schedule_type'] == 'weekly' and v:
+                valid_days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+                if v.lower() not in valid_days:
+                    raise ValueError('Weekly schedule day must be a valid day of week')
+            elif values['schedule_type'] == 'monthly' and v:
+                try:
+                    day = int(v)
+                    if day < 1 or day > 31:
+                        raise ValueError('Monthly schedule day must be between 1 and 31')
+                except ValueError:
+                    raise ValueError('Monthly schedule day must be a number')
+        return v
+
+
+class ScheduledTaskCreate(BaseModel):
+    """Model for creating a new scheduled task."""
+    
+    task_name: str = Field(..., description="Task name for identification")
+    urls: List[str] = Field(..., description="Company blog URLs to analyze")
+    email_recipients: List[str] = Field(default_factory=list, description="Email addresses for report delivery")
+    max_articles: int = Field(default=5, ge=1, le=20, description="Articles per blog to analyze")
+    
+    # Schedule configuration
+    schedule_type: str = Field(..., pattern="^(daily|weekly|monthly)$", description="Schedule frequency")
+    schedule_time: str = Field(..., description="Time of day (HH:MM format)")
+    schedule_day: Optional[str] = Field(None, description="Day of week (for weekly) or day of month (for monthly)")
+
+
+class ScheduledTaskUpdate(BaseModel):
+    """Model for updating an existing scheduled task."""
+    
+    task_name: Optional[str] = Field(None, description="Task name for identification")
+    urls: Optional[List[str]] = Field(None, description="Company blog URLs to analyze")
+    email_recipients: Optional[List[str]] = Field(None, description="Email addresses for report delivery")
+    max_articles: Optional[int] = Field(None, ge=1, le=20, description="Articles per blog to analyze")
+    
+    # Schedule configuration
+    schedule_type: Optional[str] = Field(None, pattern="^(daily|weekly|monthly)$", description="Schedule frequency")
+    schedule_time: Optional[str] = Field(None, description="Time of day (HH:MM format)")
+    schedule_day: Optional[str] = Field(None, description="Day of week (for weekly) or day of month (for monthly)")
+    
+    # Task status
+    is_active: Optional[bool] = Field(None, description="Whether the task is currently active")

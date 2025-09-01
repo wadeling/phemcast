@@ -9,9 +9,9 @@ import base64
 from io import BytesIO
 
 try:
-    from .models import User, WeChatLoginState, LoginResponse
-    from .settings import get_settings
-    from .logging_config import get_logger
+    from models import User, WeChatLoginState, LoginResponse
+    from settings import get_settings
+    from logging_config import get_logger
 except ImportError:
     from models import User, WeChatLoginState, LoginResponse
     from settings import get_settings

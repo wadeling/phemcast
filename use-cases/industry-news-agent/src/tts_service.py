@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 import hashlib
 import secrets
 
-from .settings import Settings
-from .logging_config import get_logger
+from settings import Settings
+from logging_config import get_logger
 
 logger = get_logger(__name__)
 

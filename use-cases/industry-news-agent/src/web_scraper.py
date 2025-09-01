@@ -11,8 +11,8 @@ import traceback
 from datetime import datetime
 import hashlib
 import logging
-from .models import Article
-from .settings import Settings
+from models import Article
+from settings import Settings
 
 logger = logging.getLogger(__name__)
 class WebScrapingError(Exception):

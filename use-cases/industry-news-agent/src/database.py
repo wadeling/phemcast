@@ -1,39 +1,10 @@
-"""Database models and connection for industry news agent."""
-from sqlalchemy import create_engine, Column, String, Boolean, DateTime, Text
-from sqlalchemy.ext.declarative import declarative_base
+"""Database connection manager for industry news agent."""
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from datetime import datetime
 import os
 from typing import Optional
-
-Base = declarative_base()
-
-
-class InviteCode(Base):
-    """Invite code model."""
-    __tablename__ = "invite_codes"
-    
-    code = Column(String(50), primary_key=True, index=True)
-    is_used = Column(Boolean, default=False, nullable=False)
-    used_by = Column(String(100), nullable=True)
-    used_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    expires_at = Column(DateTime, nullable=True)
-
-
-class User(Base):
-    """User model."""
-    __tablename__ = "users"
-    
-    username = Column(String(100), primary_key=True, index=True)
-    email = Column(String(255), unique=True, index=True, nullable=True)
-    hashed_password = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    last_login = Column(DateTime, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    invite_code_used = Column(String(50), nullable=True)
 
 
 class DatabaseManager:
@@ -64,6 +35,8 @@ class DatabaseManager:
         self.async_engine = create_async_engine(async_url)
         
         # Create tables
+        # Import all models to ensure they're registered with Base
+        from db_models import Base
         Base.metadata.create_all(bind=self.engine)
         
         # Session factories

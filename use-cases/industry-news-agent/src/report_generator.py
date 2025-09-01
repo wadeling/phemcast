@@ -21,9 +21,9 @@ from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from jinja2 import Environment, FileSystemLoader
 
-from .settings import Settings
-from .models import Article, CompanyInsights
-from .tts_service import create_tts_service, MinimaxiTTSService
+from settings import Settings
+from models import Article, CompanyInsights
+from tts_service import create_tts_service, MinimaxiTTSService
 
 
 class ReportGenerator:

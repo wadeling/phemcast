@@ -23,7 +23,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy import select
 
-from .database import User, InviteCode, get_async_db
+from database import get_async_db
+from db_models import User, InviteCode
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

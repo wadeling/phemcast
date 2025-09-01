@@ -5,8 +5,8 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
 
-from .settings import Settings, load_settings
-from .logging_config import setup_logging, get_logger
+from settings import Settings, load_settings
+from logging_config import setup_logging, get_logger
 
 # Load settings first to get log level
 settings = load_settings()
@@ -28,14 +28,19 @@ import uvicorn
 import json
 from typing import List
 
-from .agent import create_agent
-from .models import TaskStatus
-from .database import init_db, get_async_db, User
-from .auth import (
+from agent import create_agent
+from models import TaskStatus
+from database import init_db, get_async_db
+from db_models import User
+from task_manager import task_manager
+from auth import (
     authenticate_user, create_user, verify_invite_code,
     create_access_token, get_current_user
 )
-from .tts_service import create_tts_service
+from tts_service import create_tts_service
+
+# Import scheduled task models
+from models import ScheduledTaskCreate, ScheduledTaskUpdate
 
 
 logger = get_logger(__name__)
@@ -132,9 +137,18 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup."""
-    from .settings import load_settings
-    settings = load_settings()
-    init_db(settings.database_url)
+    try:
+        from settings import load_settings
+        settings = load_settings()
+        logger.info("Initializing database on startup...")
+        logger.debug(f"Database URL: {settings.database_url}")
+        init_db(settings.database_url)
+        logger.info("Database initialized successfully on startup")
+    except Exception as e:
+        logger.error(f"Failed to initialize database on startup: {e}")
+        import traceback
+        logger.error(f"Startup database error traceback: {traceback.format_exc()}")
+        raise
 
 # Setup middleware
 app.add_middleware(
@@ -173,6 +187,30 @@ async def home():
     if not html_file.exists():
         return JSONResponse(
             {"error": "HTML interface not found. Please ensure html/index.html exists."},
+            status_code=500
+        )
+    return FileResponse(html_file, media_type="text/html")
+
+
+@app.get("/scheduled-tasks")
+async def scheduled_tasks_page():
+    """Serve the scheduled tasks management page."""
+    html_file = html_dir / "scheduled-tasks.html"
+    if not html_file.exists():
+        return JSONResponse(
+            {"error": "Scheduled tasks page not found."},
+            status_code=500
+        )
+    return FileResponse(html_file, media_type="text/html")
+
+
+@app.get("/scheduled-tasks-test")
+async def scheduled_tasks_test_page():
+    """Serve the scheduled tasks test page (no auth required)."""
+    html_file = html_dir / "scheduled-tasks-test.html"
+    if not html_file.exists():
+        return JSONResponse(
+            {"error": "Scheduled tasks test page not found."},
             status_code=500
         )
     return FileResponse(html_file, media_type="text/html")
@@ -585,7 +623,7 @@ async def api_docs():
 async def get_audio_file(token: str):
     """Get audio file using access token."""
     try:
-        from .settings import load_settings
+        from settings import load_settings
         settings = load_settings()
         
         # 创建TTS服务实例来验证token
@@ -631,5 +669,94 @@ async def get_audio_file(token: str):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-if __name__ == "__main__":
-    uvicorn.run("src.web_interface:app", host="0.0.0.0", port=8000, reload=True)
+@app.post("/api/scheduled-tasks")
+async def create_scheduled_task(
+    request: ScheduledTaskCreate, 
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new scheduled task."""
+    try:
+        logger.debug(f"Received scheduled task creation request: {request.dict()}")
+        logger.debug(f"URLs in request: {request.urls}")
+        logger.debug(f"Email recipients in request: {request.email_recipients}")
+        
+        task_id = await task_manager.create_task(request.dict(), current_user.username)
+        return {"task_id": task_id, "message": "Scheduled task created successfully"}
+    except Exception as e:
+        logger.error(f"Failed to create scheduled task: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/scheduled-tasks")
+async def get_scheduled_tasks(current_user: User = Depends(get_current_user)):
+    """Get all scheduled tasks for the current user."""
+    try:
+        logger.debug(f"Fetching scheduled tasks for user: {current_user.username}")
+        tasks = await task_manager.get_user_tasks(current_user.username)
+        logger.debug(f"Successfully fetched {len(tasks)} tasks")
+        return {"tasks": tasks}
+    except Exception as e:
+        logger.error(f"Failed to fetch scheduled tasks: {str(e)}")
+        import traceback
+        logger.error(f"Error traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch scheduled tasks: {str(e)}")
+
+
+@app.put("/api/scheduled-tasks/{task_id}")
+async def update_scheduled_task(
+    task_id: str,
+    request: ScheduledTaskUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update an existing scheduled task."""
+    try:
+        success = await task_manager.update_task(task_id, current_user.username, request.dict(exclude_unset=True))
+        if success:
+            return {"message": "Scheduled task updated successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Task not found or update failed")
+    except Exception as e:
+        logger.error(f"Failed to update scheduled task: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/scheduled-tasks/{task_id}")
+async def delete_scheduled_task(
+    task_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a scheduled task."""
+    try:
+        success = await task_manager.delete_task(task_id, current_user.username)
+        if success:
+            return {"message": "Scheduled task deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Task not found or delete failed")
+    except Exception as e:
+        logger.error(f"Failed to delete scheduled task: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/scheduled-tasks/{task_id}/toggle")
+async def toggle_scheduled_task(
+    task_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Toggle the active status of a scheduled task."""
+    try:
+        success = await task_manager.toggle_task_status(task_id, current_user.username)
+        if success:
+            return {"message": "Task status toggled successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Task not found or toggle failed")
+    except Exception as e:
+        logger.error(f"Failed to toggle scheduled task: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Note: Task scheduler is now managed by the background TaskProcessor process
+# No API endpoints are needed for start/stop operations
+
+
+# Note: This file is now imported by main.py
+# Use 'python main.py' to start the application

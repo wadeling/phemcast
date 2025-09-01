@@ -1,222 +1,268 @@
-# Industry News Agent Docker 部署指南
+# Industry News Agent - Docker 构建说明
 
-## 📋 概述
+## 概述
 
-本项目使用Docker容器化部署，包含两个主要服务：
-- **Frontend**: 基于Nginx的静态文件服务
-- **Backend**: 基于Python FastAPI的后端服务
+本项目使用Docker容器化部署，包含前端和后端两个服务。
 
-## 🏗️ 目录结构
+## 架构变更说明
 
-```
-build/
-├── frontend/
-│   ├── Dockerfile          # 前端Docker镜像构建文件
-│   └── nginx.conf          # Nginx配置文件
-├── backend/
-│   └── Dockerfile          # 后端Docker镜像构建文件
-├── docker-compose.yml      # 服务编排文件
-├── requirements.txt         # 基础Python依赖
-├── .dockerignore           # Docker构建忽略文件
-├── build.sh                # 镜像构建脚本
-├── deploy.sh               # 部署管理脚本
-└── README.md               # 本文件
-```
+### 新架构特点
+- **统一入口**: 使用`main.py`作为程序入口点
+- **后台任务**: 自动启动TaskProcessor进程管理定时任务
+- **进程管理**: 主进程运行FastAPI，子进程运行任务调度器
 
-## 🚀 快速开始
+### 启动方式变更
+- **之前**: 分别启动Web服务和调度器
+- **现在**: 使用`python main.py`统一启动所有服务
+
+## 构建和部署
 
 ### 1. 构建镜像
 
 ```bash
-# 进入build目录
-cd build
+# 构建后端镜像
+docker build -f build/backend/Dockerfile -t industry-news-agent-backend .
 
-# 构建所有镜像
-./build.sh
+# 构建前端镜像
+docker build -f build/frontend/Dockerfile -t industry-news-agent-frontend .
 ```
 
-### 2. 启动应用
+### 2. 运行容器
 
 ```bash
-# 使用docker-compose启动
+# 运行后端容器
+docker run -d \
+  --name industry-news-agent-backend \
+  -p 8000:8000 \
+  -e DATABASE_URL="mysql://user:password@host:3306/dbname" \
+  -e OPENAI_API_KEY="your_api_key" \
+  industry-news-agent-backend
+
+# 运行前端容器
+docker run -d \
+  --name industry-news-agent-frontend \
+  -p 80:80 \
+  industry-news-agent-frontend
+```
+
+### 3. 使用Docker Compose（推荐）
+
+```bash
+# 在deploy目录下运行
+cd deploy
 docker-compose up -d
-
-# 或者使用部署脚本
-./deploy.sh start
 ```
 
-### 3. 访问应用
+## 服务配置
 
-- **前端界面**: http://localhost
-- **后端API**: http://localhost:8000
+### 后端服务 (Backend)
+
+- **端口**: 8000
+- **入口点**: `python main.py`
+- **健康检查**: http://localhost:8000/health
+- **功能**: 
+  - FastAPI Web服务
+  - 后台任务处理器
+  - 数据库操作
+  - AI分析服务
+
+### 前端服务 (Frontend)
+
+- **端口**: 80
+- **入口点**: Nginx
 - **健康检查**: http://localhost/health
+- **功能**: 
+  - 静态文件服务
+  - 反向代理到后端
+  - 负载均衡
 
-## 🛠️ 部署脚本使用
+## 环境变量
 
-`deploy.sh` 脚本提供了完整的应用管理功能：
+### 必需环境变量
 
 ```bash
-# 查看帮助
-./deploy.sh help
+# 数据库连接
+DATABASE_URL=mysql://username:password@host:3306/database_name
 
-# 启动应用
-./deploy.sh start
+# OpenAI API
+OPENAI_API_KEY=your_openai_api_key
 
-# 停止应用
-./deploy.sh stop
-
-# 重启应用
-./deploy.sh restart
-
-# 查看状态
-./deploy.sh status
-
-# 查看日志
-./deploy.sh logs
-
-# 构建并启动
-./deploy.sh build
-
-# 清理所有资源
-./deploy.sh clean
+# 腾讯云配置（如果使用邮件服务）
+TENCENT_CLOUD_SECRET_ID=your_secret_id
+TENCENT_CLOUD_SECRET_KEY=your_secret_key
+TENCENT_FROM_EMAIL=your_verified_email@example.com
 ```
 
-## 🔧 配置说明
-
-### 前端配置 (nginx.conf)
-
-- 端口: 80
-- 静态文件服务
-- API代理到后端
-- Gzip压缩
-- 静态资源缓存
-- 健康检查端点
-
-### 后端配置
-
-- 端口: 8000
-- Python 3.12环境
-- 健康检查
-- 日志和报告目录挂载
-
-### 环境变量
-
-可以通过 `docker-compose.yml` 或环境文件设置：
+### 可选环境变量
 
 ```bash
-ENVIRONMENT=production
+# 日志配置
 LOG_LEVEL=INFO
+LOG_FILE=logs/app.log
+SHOW_FILE_LINE=true
+SHOW_FUNCTION=true
+
+# 邮件服务配置
+EMAIL_USERNAME=your_email@example.com
+EMAIL_PASSWORD=your_email_password
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
 ```
 
-## 📊 监控和日志
+## 健康检查
 
-### 健康检查
-
-- 前端: `GET /health`
-- 后端: `GET /health`
-
-### 日志查看
+### 后端健康检查
 
 ```bash
-# 查看所有服务日志
-./deploy.sh logs
-
-# 查看特定服务日志
-docker-compose logs frontend
-docker-compose logs backend
+curl http://localhost:8000/health
 ```
 
-### 状态监控
+响应示例：
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-08-27T15:48:31.123456"
+}
+```
+
+### 前端健康检查
 
 ```bash
-# 查看服务状态
-./deploy.sh status
-
-# 查看资源使用
-docker stats
+curl http://localhost/health
 ```
 
-## 🔄 更新部署
+## 日志查看
 
-### 1. 停止服务
+### 容器日志
 
 ```bash
-./deploy.sh stop
+# 查看后端日志
+docker logs industry-news-agent-backend
+
+# 查看前端日志
+docker logs industry-news-agent-frontend
+
+# 实时查看日志
+docker logs -f industry-news-agent-backend
 ```
 
-### 2. 重新构建
+### 应用日志
 
 ```bash
-./build.sh
+# 进入容器查看应用日志
+docker exec -it industry-news-agent-backend tail -f logs/app.log
 ```
 
-### 3. 启动服务
-
-```bash
-./deploy.sh start
-```
-
-## 🧹 清理和维护
-
-### 清理所有资源
-
-```bash
-./deploy.sh clean
-```
-
-这将删除：
-- 所有容器
-- 网络
-- 卷（包括报告和日志）
-
-### 查看磁盘使用
-
-```bash
-docker system df
-```
-
-### 清理未使用的镜像
-
-```bash
-docker image prune -a
-```
-
-## 🚨 故障排除
+## 故障排除
 
 ### 常见问题
 
-1. **端口冲突**
-   - 检查80和8000端口是否被占用
-   - 修改 `docker-compose.yml` 中的端口映射
+1. **容器启动失败**
+   - 检查环境变量配置
+   - 查看容器日志
+   - 确认端口未被占用
 
-2. **权限问题**
-   - 确保脚本有执行权限: `chmod +x *.sh`
+2. **健康检查失败**
+   - 检查服务是否正常启动
+   - 确认网络连接
+   - 查看应用日志
 
-3. **构建失败**
-   - 检查Docker是否运行
-   - 检查网络连接
-   - 查看构建日志
+3. **任务调度不工作**
+   - 检查TaskProcessor进程状态
+   - 查看调度器日志
+   - 确认数据库连接
 
-### 调试模式
+### 调试命令
 
 ```bash
-# 前台运行查看详细输出
-docker-compose up
+# 检查容器状态
+docker ps -a
 
-# 查看特定服务日志
-docker-compose logs -f backend
+# 检查容器资源使用
+docker stats
+
+# 进入容器调试
+docker exec -it industry-news-agent-backend bash
+
+# 检查网络连接
+docker network ls
+docker network inspect bridge
 ```
 
-## 📝 注意事项
+## 性能优化
 
-1. **数据持久化**: 报告和日志存储在Docker卷中
-2. **网络配置**: 前端通过Nginx代理API请求到后端
-3. **健康检查**: 确保服务正常运行
-4. **资源限制**: 可以根据需要调整Docker资源限制
+### 资源限制
 
-## 🔗 相关链接
+```bash
+# 限制容器资源使用
+docker run -d \
+  --name industry-news-agent-backend \
+  --memory=2g \
+  --cpus=2 \
+  -p 8000:8000 \
+  industry-news-agent-backend
+```
 
-- [Docker官方文档](https://docs.docker.com/)
-- [Docker Compose文档](https://docs.docker.com/compose/)
-- [Nginx配置参考](https://nginx.org/en/docs/)
-- [FastAPI部署指南](https://fastapi.tiangolo.com/deployment/)
+### 日志管理
+
+```bash
+# 配置日志轮转
+docker run -d \
+  --name industry-news-agent-backend \
+  --log-driver json-file \
+  --log-opt max-size=10m \
+  --log-opt max-file=3 \
+  -p 8000:8000 \
+  industry-news-agent-backend
+```
+
+## 生产环境部署
+
+### 使用进程管理器
+
+```bash
+# 使用supervisor管理进程
+sudo apt-get install supervisor
+sudo nano /etc/supervisor/conf.d/industry-news-agent.conf
+```
+
+### 监控和告警
+
+- 配置Prometheus监控
+- 设置Grafana仪表板
+- 配置告警规则
+
+## 更新和升级
+
+### 滚动更新
+
+```bash
+# 构建新镜像
+docker build -t industry-news-agent-backend:v2 .
+
+# 更新服务
+docker-compose up -d --no-deps backend
+```
+
+### 回滚
+
+```bash
+# 回滚到之前的版本
+docker-compose up -d --no-deps backend
+```
+
+## 安全注意事项
+
+1. **环境变量**: 不要在代码中硬编码敏感信息
+2. **网络隔离**: 使用Docker网络隔离服务
+3. **权限控制**: 限制容器权限
+4. **镜像安全**: 定期更新基础镜像
+5. **日志安全**: 避免记录敏感信息
+
+## 联系支持
+
+如果遇到问题，请：
+1. 查看容器日志
+2. 检查环境变量配置
+3. 运行健康检查
+4. 查看应用日志

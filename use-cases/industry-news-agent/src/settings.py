@@ -4,10 +4,14 @@ from pydantic import Field, validator
 from typing import List, Optional
 from pathlib import Path
 
-from .logging_config import get_logger
-
-
-logger = get_logger(__name__)
+# Import logging configuration
+try:
+    from logging_config import get_logger
+    logger = get_logger(__name__)
+except ImportError:
+    # Fallback for direct execution
+    import logging
+    logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -35,6 +39,15 @@ class Settings(BaseSettings):
     log_file: Optional[str] = Field(default=None, description="Log file path (optional, console only if not set)")
     show_file_line: bool = Field(default=False, description="Show file name and line number in log messages")
     show_function: bool = Field(default=False, description="Show function name in log messages")
+    uvicorn_log_level: str = Field(default="INFO", description="Uvicorn server log level (WARNING, INFO, ERROR)")
+    
+    @validator("uvicorn_log_level")
+    def validate_uvicorn_log_level(cls, v):
+        """Validate uvicorn log level."""
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if v.upper() not in valid_levels:
+            raise ValueError(f"Invalid uvicorn log level: {v}. Valid levels: {', '.join(valid_levels)}")
+        return v.upper()
 
     # LLM Configuration
     openai_api_key: str = Field(..., description="OpenAI API key for content analysis")

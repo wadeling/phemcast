@@ -10,11 +10,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from tempfile import mkdtemp
 from pathlib import Path
 
-from .settings import Settings, load_settings
-from .models import Article, CompanyInsights, AnalysisConfig
-from .web_scraper import AsyncWebScraper
-from .report_generator import ReportGenerator
-from .logging_config import setup_logging, get_logger
+from settings import Settings, load_settings
+from models import Article, CompanyInsights, AnalysisConfig
+from web_scraper import AsyncWebScraper
+from report_generator import ReportGenerator
+from logging_config import setup_logging, get_logger
 
 # Load settings first to get log level
 settings = load_settings()
@@ -190,7 +190,7 @@ class AIContentAnalysisTool(BaseTool):
                 articles = [articles]
             
             # Validate that all articles are Article objects
-            from .models import Article
+            from models import Article
             validated_articles = []
             for article in articles:
                 if isinstance(article, Article):
@@ -414,7 +414,7 @@ class ReportGenerationTool(BaseTool):
             # Send email if recipients provided
             if email_recipients:
                 try:
-                    from .email_service import EmailService
+                    from email_service import EmailService
                     email_service = EmailService(self.settings)
                     
                     logger.info(f"Sending email to {email_recipients}")
@@ -473,7 +473,7 @@ def analyze_content(articles: List[Dict], analysis_config: Dict = None) -> Dict:
     Returns:
         Dict with analyzed articles and analysis stats
     """
-    from .models import Article
+    from models import Article
     
     settings = Settings()
     analyzer = AIContentAnalysisTool(settings)

@@ -5,14 +5,9 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict
 from jose import JWTError, jwt
 
-try:
-    from .models import User
-    from .settings import get_settings
-    from .logging_config import get_logger
-except ImportError:
-    from models import User
-    from settings import get_settings
-    from logging_config import get_logger
+from models import User
+from settings import get_settings
+from logging_config import get_logger
 
 logger = get_logger(__name__)
 

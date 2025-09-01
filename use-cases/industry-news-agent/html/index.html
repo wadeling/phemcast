@@ -25,6 +25,14 @@
                 🧭 Choose Testing Mode
             </a>
             <br><br>
+            <a href="#" onclick="openScheduledTasksModal()" style="color: #6f42c1; text-decoration: none; font-weight: bold;">
+                ⏰ 定时任务管理
+            </a>
+            <br>
+            <a href="/scheduled-tasks-test" style="color: #fd7e14; text-decoration: none; font-weight: bold;">
+                🧪 定时任务测试页面
+            </a>
+            <br>
             <a href="/static/audio-test.html" style="color: #28a745; text-decoration: none; font-weight: bold;">
                 🎧 测试音频播放器
             </a>
@@ -105,6 +113,65 @@
                         <button id="pause-audio" class="audio-btn" onclick="pauseAudio()" style="display: none;">⏸️ 暂停</button>
                         <button id="stop-audio" class="audio-btn" onclick="stopAudio()">⏹️ 停止</button>
                         <button id="download-audio" class="audio-btn" onclick="downloadAudio()">💾 下载</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 定时任务管理弹窗 -->
+        <div id="scheduledTasksModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>⏰ 定时任务管理</h2>
+                    <span class="close" onclick="closeScheduledTasksModal()">&times;</span>
+                </div>
+                
+                <div class="modal-body">
+                    <!-- 创建新任务表单 -->
+                    <form id="taskForm">
+                        <h3>创建新定时任务</h3>
+                        
+                        <div class="form-group">
+                            <label>任务名称:</label>
+                            <input type="text" id="modal_taskName" required placeholder="例如：每周行业报告">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>URLs (每行一个):</label>
+                            <textarea id="modal_urls" rows="3" required placeholder="https://blog.openai.com&#10;https://blog.microsoft.com"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>邮件接收者:</label>
+                            <input type="text" id="emailRecipients" placeholder="多个邮箱用逗号分隔（可选）">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>执行频率:</label>
+                            <select id="modal_scheduleType" required>
+                                <option value="daily">每天</option>
+                                <option value="weekly">每周</option>
+                                <option value="monthly">每月</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>执行时间 (东八区时间):</label>
+                            <input type="time" id="scheduleTime" required value="09:00">
+                        </div>
+                        
+                        <div class="form-group" id="scheduleDayGroup" style="display:none;">
+                            <label>执行日期:</label>
+                            <select id="scheduleDay"></select>
+                        </div>
+                        
+                        <button type="submit" class="btn">创建任务</button>
+                    </form>
+                    
+                    <!-- 任务列表 -->
+                    <div class="task-list">
+                        <h3>我的定时任务</h3>
+                        <div id="tasksList">加载中...</div>
                     </div>
                 </div>
             </div>
@@ -235,6 +302,200 @@
                 document.body.removeChild(link);
             } else {
                 alert('没有可下载的音频文件');
+            }
+        }
+        
+        // 定时任务管理弹窗控制函数
+        function openScheduledTasksModal() {
+            document.getElementById('scheduledTasksModal').style.display = 'block';
+            setupTaskForm();
+            loadTasks();
+        }
+        
+        function closeScheduledTasksModal() {
+            document.getElementById('scheduledTasksModal').style.display = 'none';
+        }
+        
+        // 设置定时任务表单
+        function setupTaskForm() {
+            document.getElementById('modal_scheduleType').addEventListener('change', updateScheduleDay);
+            document.getElementById('taskForm').addEventListener('submit', handleTaskSubmit);
+            updateScheduleDay();
+        }
+        
+        // 更新执行日期选项
+        function updateScheduleDay() {
+            const type = document.getElementById('modal_scheduleType').value;
+            const group = document.getElementById('scheduleDayGroup');
+            const select = document.getElementById('scheduleDay');
+            
+            if (type === 'weekly') {
+                group.style.display = 'block';
+                select.innerHTML = '<option value="monday">周一</option><option value="tuesday">周二</option><option value="wednesday">周三</option><option value="thursday">周四</option><option value="friday">周五</option><option value="saturday">周六</option><option value="sunday">周日</option>';
+            } else if (type === 'monthly') {
+                group.style.display = 'block';
+                select.innerHTML = '';
+                for (let i = 1; i <= 31; i++) {
+                    select.innerHTML += `<option value="${i}">${i}号</option>`;
+                }
+            } else {
+                group.style.display = 'none';
+            }
+        }
+        
+        // 处理任务表单提交
+        async function handleTaskSubmit(event) {
+            event.preventDefault();
+            
+            const formData = {
+                task_name: document.getElementById('modal_taskName').value,
+                urls: document.getElementById('modal_urls').value.split('\n').filter(url => url.trim()),
+                email_recipients: document.getElementById('emailRecipients').value.split(',').filter(email => email.trim()),
+                schedule_type: document.getElementById('modal_scheduleType').value,
+                schedule_time: document.getElementById('scheduleTime').value,
+                schedule_day: document.getElementById('scheduleDay').value || null
+            };
+            
+            try {
+                const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+                if (!token) {
+                    alert('请先登录');
+                    return;
+                }
+                
+                const response = await fetch('/api/scheduled-tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    alert('任务创建成功！');
+                    document.getElementById('taskForm').reset();
+                    updateScheduleDay();
+                    loadTasks();
+                } else {
+                    const errorData = await response.json();
+                    alert('创建失败: ' + (errorData.detail || '未知错误'));
+                }
+            } catch (error) {
+                alert('创建失败: ' + error.message);
+            }
+        }
+        
+        // 加载定时任务列表
+        async function loadTasks() {
+            try {
+                const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+                if (!token) {
+                    document.getElementById('tasksList').innerHTML = '请先登录';
+                    return;
+                }
+                
+                const response = await fetch('/api/scheduled-tasks', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    displayTasks(result.tasks || []);
+                } else if (response.status === 401) {
+                    document.getElementById('tasksList').innerHTML = '登录已过期，请重新登录';
+                } else {
+                    const errorData = await response.json();
+                    document.getElementById('tasksList').innerHTML = '加载失败: ' + (errorData.detail || '未知错误');
+                }
+            } catch (error) {
+                document.getElementById('tasksList').innerHTML = '加载失败: ' + error.message;
+            }
+        }
+        
+        // 显示任务列表
+        function displayTasks(tasks) {
+            const container = document.getElementById('tasksList');
+            
+            if (!tasks || tasks.length === 0) {
+                container.innerHTML = '暂无定时任务';
+                return;
+            }
+            
+            const html = tasks.map(task => `
+                <div class="task-item">
+                    <h3>${task.task_name}</h3>
+                    <p>执行计划: ${formatSchedule(task.schedule_type, task.schedule_time, task.schedule_day)}</p>
+                    <p>状态: ${task.is_active ? '活跃' : '暂停'}</p>
+                    <button onclick="toggleTask('${task.id}')" class="btn">${task.is_active ? '暂停' : '启动'}</button>
+                    <button onclick="deleteTask('${task.id}')" class="btn" style="background: #dc3545;">删除</button>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+        
+        // 格式化执行计划显示
+        function formatSchedule(type, time, day) {
+            if (type === 'daily') return `每天 ${time}`;
+            if (type === 'weekly') return `每周${day} ${time}`;
+            if (type === 'monthly') return `每月${day}号 ${time}`;
+            return `${type} ${time}`;
+        }
+        
+        // 切换任务状态
+        async function toggleTask(taskId) {
+            try {
+                const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+                const response = await fetch(`/api/scheduled-tasks/${taskId}/toggle`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    loadTasks();
+                } else {
+                    const errorData = await response.json();
+                    alert('操作失败: ' + (errorData.detail || '未知错误'));
+                }
+            } catch (error) {
+                alert('操作失败: ' + error.message);
+            }
+        }
+        
+        // 删除任务
+        async function deleteTask(taskId) {
+            if (!confirm('确定要删除这个任务吗？')) return;
+            
+            try {
+                const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+                const response = await fetch(`/api/scheduled-tasks/${taskId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    loadTasks();
+                } else {
+                    const errorData = await response.json();
+                    alert('删除失败: ' + (errorData.detail || '未知错误'));
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
+            }
+        }
+        
+        // 点击弹窗外部关闭弹窗
+        window.onclick = function(event) {
+            const modal = document.getElementById('scheduledTasksModal');
+            if (event.target === modal) {
+                closeScheduledTasksModal();
             }
         }
         

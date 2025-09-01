@@ -15,8 +15,8 @@ import aiosmtplib
 from datetime import datetime
 from jinja2 import Environment, BaseLoader
 
-from .settings import Settings
-from .logging_config import get_logger
+from settings import Settings
+from logging_config import get_logger
 
 
 logger = get_logger(__name__)

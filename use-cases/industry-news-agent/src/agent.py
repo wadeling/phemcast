@@ -10,12 +10,12 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import ToolNode
 from langgraph.graph.message import add_messages
 
-from .settings import Settings, load_settings
-from .models import AgentState, Article, CompanyInsights
-from .tools import scrape_articles, analyze_content, generate_weekly_report
-from .web_scraper import AsyncWebScraper
-from .report_generator import ReportGenerator
-from .email_service import EmailService
+from settings import Settings, load_settings
+from models import AgentState, Article, CompanyInsights
+from tools import scrape_articles, analyze_content, generate_weekly_report
+from web_scraper import AsyncWebScraper
+from report_generator import ReportGenerator
+from email_service import EmailService
 
 
 logger = logging.getLogger(__name__)
@@ -173,7 +173,7 @@ class IndustryNewsAgent:
             # Convert scraped data to Article objects if needed
             article_objects = []
             if articles and isinstance(articles[0], dict):
-                from .models import Article
+                from models import Article
                 article_objects = [Article(**article) for article in articles]
             else:
                 article_objects = articles
@@ -218,7 +218,7 @@ class IndustryNewsAgent:
             state["logs"] = state.get("logs", []) + [f"🤖 Starting AI analysis for {len(articles)} articles"]
             
             # Import here to avoid circular dependencies
-            from .tools import AIContentAnalysisTool
+            from tools import AIContentAnalysisTool
             
             analyzer = AIContentAnalysisTool(self.settings)
             # Call _run directly to avoid BaseTool.run() issues

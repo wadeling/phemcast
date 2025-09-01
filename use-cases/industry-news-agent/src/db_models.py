@@ -1,0 +1,57 @@
+"""SQLAlchemy database models for industry news agent."""
+from sqlalchemy import Column, String, Boolean, DateTime, Text, Integer
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
+
+Base = declarative_base()
+
+
+class InviteCode(Base):
+    """Invite code model."""
+    __tablename__ = "invite_codes"
+    
+    code = Column(String(50), primary_key=True, index=True)
+    is_used = Column(Boolean, default=False, nullable=False)
+    used_by = Column(String(100), nullable=True)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=True)
+
+
+class User(Base):
+    """User model."""
+    __tablename__ = "users"
+    
+    username = Column(String(100), primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=True)
+    hashed_password = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_login = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    invite_code_used = Column(String(50), nullable=True)
+
+
+class ScheduledTask(Base):
+    """Scheduled task table."""
+    __tablename__ = "scheduled_tasks"
+    
+    id = Column(String(50), primary_key=True, index=True)
+    task_name = Column(String(255), nullable=False)
+    user_id = Column(String(100), nullable=False, index=True)
+    urls = Column(Text, nullable=False)  # JSON string of URLs
+    email_recipients = Column(Text, nullable=True)  # JSON string of emails
+    max_articles = Column(Integer, nullable=False, default=5)
+    
+    # Schedule configuration
+    schedule_type = Column(String(20), nullable=False)  # daily, weekly, monthly
+    schedule_time = Column(String(10), nullable=False)  # HH:MM format
+    schedule_day = Column(String(20), nullable=True)  # day of week or day of month
+    
+    # Task status
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_run = Column(DateTime, nullable=True)
+    next_run = Column(DateTime, nullable=True)
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

@@ -35,8 +35,9 @@ RUN apt-get update && apt-get install -y \
 
 # Copy application code
 COPY ./src/ ./src/
+COPY ./build/backend/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY ./requirements.txt ./app_requirements.txt
-COPY init_invite_codes.py .
+COPY ./init_invite_codes.py .
 
 # Change pip source to Aliyun for faster download
 RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
@@ -70,5 +71,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Start the application
-CMD ["uvicorn", "src.web_interface:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the application using the independent Docker startup script
+ENTRYPOINT [ "entrypoint.sh" ]
