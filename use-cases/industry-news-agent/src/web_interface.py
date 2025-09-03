@@ -473,11 +473,27 @@ async def download_report(task_id: str, format_type: str):
         "audio": "audio/mpeg"
     }
     
-    return FileResponse(
-        str(file_path),
-        media_type=media_type_map.get(format_type, "application/octet-stream"),
-        filename=file_path.name
-    )
+    # 获取文件扩展名
+    file_ext = file_path.suffix.lower()
+    
+    # 关键修改：根据文件类型设置不同的响应头
+    if format_type == "audio" or file_ext in [".mp3", ".wav", ".ogg", ".m4a", ".aac"]:
+        # 对于音频文件，设置内联播放的响应头
+        return FileResponse(
+            str(file_path),
+            media_type=media_type_map.get(format_type, "audio/mpeg"),
+            filename=file_path.name,
+            headers={
+                "Content-Disposition": f"inline; filename=\"{file_path.name}\"",
+                "Accept-Ranges": "bytes"
+            }
+        )
+    else:
+        return FileResponse(
+            str(file_path),
+            media_type=media_type_map.get(format_type, "application/octet-stream"),
+            filename=file_path.name
+        )
 
 
 @app.delete("/api/task/{task_id}")
