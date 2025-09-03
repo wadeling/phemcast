@@ -140,7 +140,7 @@ async function checkStatus(taskId) {
                 </div>
             `;
             
-            // 检查是否有音频文件，如果有则显示音频播放器
+            // 检查是否有音频文件，如果有则显示音频播放器并添加任务卡片
             console.log('Checking audio data:', status.report_paths);
             if (status.report_paths && status.report_paths.audio) {
                 console.log('Audio data found:', status.report_paths.audio);
@@ -150,6 +150,20 @@ async function checkStatus(taskId) {
                     showAudioPlayer(`/download/${taskId}/audio`);
                 } else {
                     console.error('showAudioPlayer function not found');
+                }
+                
+                // Add podcast card for the completed summoning
+                const taskData = {
+                    task_id: taskId,
+                    task_name: `Industry Intelligence ${taskId.substring(0, 8)}`,
+                    description: `PHEMCAST summoned ${status.total_articles || 0} industry voices into compelling podcast narrative`,
+                    audio_url: `/download/${taskId}/audio`,
+                    created_at: new Date().toISOString(),
+                    total_articles: status.total_articles || 0
+                };
+                
+                if (typeof addTaskCard === 'function') {
+                    addTaskCard(taskData);
                 }
             } else {
                 console.log('No audio data found or audio generation failed');
@@ -337,7 +351,7 @@ function updateTaskStatusFromWebSocket(message) {
             </div>
         `;
         
-        // Show audio player if available
+        // Show audio player if available and add task card
         console.log('WebSocket audio data:', message.data?.report_paths?.audio);
         if (message.data?.report_paths?.audio) {
             console.log('WebSocket: Audio data found, calling showAudioPlayer');
@@ -345,6 +359,20 @@ function updateTaskStatusFromWebSocket(message) {
                 showAudioPlayer(`/download/${currentTaskId}/audio`);
             } else {
                 console.error('WebSocket: showAudioPlayer function not found');
+            }
+            
+            // Add podcast card for the completed summoning
+            const taskData = {
+                task_id: currentTaskId,
+                task_name: `Industry Intelligence ${currentTaskId.substring(0, 8)}`,
+                description: `PHEMCAST summoned ${message.data?.total_articles || 0} industry voices into compelling podcast narrative`,
+                audio_url: `/download/${currentTaskId}/audio`,
+                created_at: new Date().toISOString(),
+                total_articles: message.data?.total_articles || 0
+            };
+            
+            if (typeof addTaskCard === 'function') {
+                addTaskCard(taskData);
             }
         } else {
             console.log('WebSocket: No audio data or audio generation failed');
@@ -418,6 +446,219 @@ function hideAudioPlayer() {
     }
 }
 
+// Task Cards Management
+let taskCards = [];
+let currentPlayingCard = null;
+
+function createTaskCard(taskData) {
+    const cardId = `task-card-${taskData.task_id}`;
+    const card = document.createElement('div');
+    card.className = 'task-card';
+    card.id = cardId;
+    card.dataset.taskId = taskData.task_id;
+    
+    const createdDate = new Date(taskData.created_at || Date.now());
+    const formattedDate = createdDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
+    });
+    
+    card.innerHTML = `
+        <div class="task-card-header">
+            <span class="task-card-tag">#Podcast</span>
+            <span class="task-card-date">${formattedDate}</span>
+        </div>
+        <div class="task-card-title">${taskData.task_name || 'Industry Intelligence Podcast'}</div>
+        <div class="task-card-description">${taskData.description || 'PHEMCAST summoned industry voices into compelling audio narrative'}</div>
+        <div class="task-card-audio">
+            <audio id="audio-${taskData.task_id}" preload="metadata">
+                <source src="${taskData.audio_url || ''}" type="audio/mpeg">
+            </audio>
+        </div>
+        <div class="task-card-controls">
+            <div class="task-card-progress">
+                <div class="task-card-progress-fill" id="progress-${taskData.task_id}"></div>
+            </div>
+        </div>
+        <div class="task-card-time">
+            <span id="current-time-${taskData.task_id}">0:00</span>
+            <span id="duration-${taskData.task_id}">0:00</span>
+        </div>
+        <div class="task-card-buttons">
+            <button class="task-card-btn secondary-btn" onclick="toggleShuffle('${taskData.task_id}')" title="Shuffle">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+                </svg>
+            </button>
+            <button class="task-card-btn secondary-btn" onclick="skipBackward('${taskData.task_id}')" title="Skip Backward">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/>
+                </svg>
+            </button>
+            <button class="task-card-btn play-btn" onclick="togglePlay('${taskData.task_id}')" id="play-btn-${taskData.task_id}" title="Play">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+            </button>
+            <button class="task-card-btn secondary-btn" onclick="skipForward('${taskData.task_id}')" title="Skip Forward">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13 6v12l8.5-6L13 6zM4 18l8.5-6L4 6v12z"/>
+                </svg>
+            </button>
+            <button class="task-card-btn download-btn" onclick="downloadTaskAudio('${taskData.task_id}')" title="Download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                </svg>
+            </button>
+        </div>
+    `;
+    
+    // Setup audio event listeners
+    const audio = card.querySelector('audio');
+    if (audio) {
+        audio.addEventListener('loadedmetadata', () => {
+            updateDuration(taskData.task_id, audio.duration);
+        });
+        
+        audio.addEventListener('timeupdate', () => {
+            updateProgress(taskData.task_id, audio.currentTime, audio.duration);
+        });
+        
+        audio.addEventListener('ended', () => {
+            resetPlayButton(taskData.task_id);
+        });
+    }
+    
+    return card;
+}
+
+function addTaskCard(taskData) {
+    const container = document.getElementById('taskCardsContainer');
+    const noTasksMessage = document.getElementById('noTasksMessage');
+    
+    if (noTasksMessage) {
+        noTasksMessage.style.display = 'none';
+    }
+    
+    const card = createTaskCard(taskData);
+    container.appendChild(card);
+    taskCards.push(taskData);
+    
+    // Scroll to the new card
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function togglePlay(taskId) {
+    const audio = document.getElementById(`audio-${taskId}`);
+    const playBtn = document.getElementById(`play-btn-${taskId}`);
+    
+    if (!audio || !audio.src) {
+        console.log('No audio source available for task:', taskId);
+        return;
+    }
+    
+    // Stop any currently playing audio
+    if (currentPlayingCard && currentPlayingCard !== taskId) {
+        const currentAudio = document.getElementById(`audio-${currentPlayingCard}`);
+        const currentPlayBtn = document.getElementById(`play-btn-${currentPlayingCard}`);
+        if (currentAudio) {
+            currentAudio.pause();
+            resetPlayButton(currentPlayingCard);
+        }
+    }
+    
+    if (audio.paused) {
+        audio.play();
+        playBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+        `;
+        currentPlayingCard = taskId;
+    } else {
+        audio.pause();
+        playBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+            </svg>
+        `;
+        currentPlayingCard = null;
+    }
+}
+
+function resetPlayButton(taskId) {
+    const playBtn = document.getElementById(`play-btn-${taskId}`);
+    if (playBtn) {
+        playBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+            </svg>
+        `;
+    }
+    if (currentPlayingCard === taskId) {
+        currentPlayingCard = null;
+    }
+}
+
+function updateProgress(taskId, currentTime, duration) {
+    const progressFill = document.getElementById(`progress-${taskId}`);
+    const currentTimeEl = document.getElementById(`current-time-${taskId}`);
+    
+    if (progressFill && duration > 0) {
+        const progress = (currentTime / duration) * 100;
+        progressFill.style.width = `${progress}%`;
+    }
+    
+    if (currentTimeEl) {
+        currentTimeEl.textContent = formatTime(currentTime);
+    }
+}
+
+function updateDuration(taskId, duration) {
+    const durationEl = document.getElementById(`duration-${taskId}`);
+    if (durationEl) {
+        durationEl.textContent = formatTime(duration);
+    }
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function toggleShuffle(taskId) {
+    // Placeholder for shuffle functionality
+    console.log('Shuffle toggled for task:', taskId);
+}
+
+function skipBackward(taskId) {
+    const audio = document.getElementById(`audio-${taskId}`);
+    if (audio) {
+        audio.currentTime = Math.max(0, audio.currentTime - 10);
+    }
+}
+
+function skipForward(taskId) {
+    const audio = document.getElementById(`audio-${taskId}`);
+    if (audio) {
+        audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+    }
+}
+
+function downloadTaskAudio(taskId) {
+    const audio = document.getElementById(`audio-${taskId}`);
+    if (audio && audio.src) {
+        const link = document.createElement('a');
+        link.href = audio.src;
+        link.download = `phemcast_${taskId}.mp3`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
 // Initialize form when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('reportForm');
@@ -428,7 +669,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Connect to WebSocket
     connectWebSocket();
+    
+    // Load existing task cards (if any)
+    loadExistingTaskCards();
 });
+
+function loadExistingTaskCards() {
+    // This would typically load from an API endpoint
+    // For now, we'll just show the no-tasks message
+    console.log('Loading existing task cards...');
+}
 
 // Try alternative WebSocket URLs when primary connection fails
 function tryAlternativeWebSocketUrls() {

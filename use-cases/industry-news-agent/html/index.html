@@ -3,116 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Industry News Agent</title>
+    <title>PHEMCAST - AI-Powered Industry Podcast Generator</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <div style="text-align: right; margin-bottom: 20px;">
-            <span id="user-info" style="display: none;">
-                Welcome, <span id="username"></span> | 
-                <a href="#" onclick="logout()" style="color: #dc3545; text-decoration: none;">Logout</a>
-            </span>
-            <div id="websocket-status" style="margin-top: 10px; font-size: 12px;">
-                <span id="ws-indicator" style="color: #666;">🔌 WebSocket: 连接中...</span>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon">🎙️</div>
+                <span class="logo-text">PHEMCAST</span>
             </div>
-        </div>
-        
-        <h1>🏢 Industry News Agent</h1>
-        
-        <div style="text-align: center; margin-bottom: 20px;">
-            <a href="/static/nav.html" style="color: #2c5aa0; text-decoration: none; font-weight: bold;">
-                🧭 Choose Testing Mode
-            </a>
-            <br><br>
-            <a href="#" onclick="openScheduledTasksModal()" style="color: #6f42c1; text-decoration: none; font-weight: bold;">
-                ⏰ 定时任务管理
-            </a>
-            <br>
-            <a href="/scheduled-tasks-test" style="color: #fd7e14; text-decoration: none; font-weight: bold;">
-                🧪 定时任务测试页面
-            </a>
-            <br>
-            <a href="/static/audio-test.html" style="color: #28a745; text-decoration: none; font-weight: bold;">
-                🎧 测试音频播放器
-            </a>
-            <br>
-            <a href="/static/websocket-test.html" style="color: #007bff; text-decoration: none; font-weight: bold;">
-                🔌 测试 WebSocket 连接
-            </a>
-            <br>
-            <a href="/static/websocket-diagnostic.html" style="color: #ffc107; text-decoration: none; font-weight: bold;">
-                🔍 WebSocket 连接诊断
-            </a>
-            <br>
-            <a href="/static/download-test.html" style="color: #17a2b8; text-decoration: none; font-weight: bold;">
-                📥 下载功能测试
-            </a>
-        </div>
-        
-        <form id="reportForm">
-            <div class="form-group">
-                <label for="urls">Company Blog URLs (one per line):</label>
-                <textarea id="urls" name="urls" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required>https://blog.openai.com</textarea>
-                <small class="form-hint">💡 Tip: Start with one URL to test the system quickly</small>
-            </div>
-            
-            <div class="form-group">
-                <label for="email">Email for Report Delivery (optional):</label>
-                <input type="email" id="email" name="email" placeholder="your.email@company.com">
-                <small class="form-hint">📧 Reports will be sent to this email address</small>
-            </div>
-            
-            <div class="form-group">
-                <label for="max_articles">Maximum Articles per Blog:</label>
-                <select id="max_articles" name="max_articles">
-                    <option value="1" selected>1 article (Quick test)</option>
-                    <option value="3">3 articles</option>
-                    <option value="5">5 articles</option>
-                    <option value="10">10 articles</option>
-                    <option value="20">20 articles</option>
-                </select>
-                <small class="form-hint">🚀 Start with 1 article for faster processing</small>
-            </div>
-            
-            <button type="submit">Generate Report</button>
-            
-            <div id="loading">
-                <div class="loading-content">
-                    <div class="loading-spinner"></div>
-                    <strong>Processing...</strong>
-                    <div id="progress-container">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 0%" id="progress-fill"></div>
-                        </div>
-                    </div>
-                    <small id="current-step">Initializing...</small>
-                    <small class="process-steps">🔄 Scraping articles... 📊 Analyzing content... 📝 Generating reports...</small>
-                    <div id="process-log" class="log-output"></div>
+            <nav class="nav">
+                <a href="#" class="nav-link">Features</a>
+                <a href="#" class="nav-link">About</a>
+                <a href="#" class="nav-link">Documentation</a>
+                <a href="#" class="nav-link">Support</a>
+            </nav>
+            <div class="header-actions">
+                <span id="user-info" class="user-info" style="display: none;">
+                    Welcome, <span id="username" class="username"></span>
+                    <a href="#" onclick="logout()" class="logout-link">Logout</a>
+                </span>
+                <div id="websocket-status" class="websocket-status">
+                    <span id="ws-indicator" class="ws-indicator">🔌 WebSocket: 连接中...</span>
                 </div>
             </div>
-            
-            <div id="result"></div>
-        </form>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="hero">
+            <div class="hero-badge">AI-Powered Podcast Generator</div>
+            <h1 class="hero-title">Summon the voice of industry intelligence</h1>
+            <p class="hero-subtitle">PHEMCAST transforms enterprise blogs into compelling podcasts. Our AI automatically gathers public voices, analyzes insights, and summons them into powerful audio narratives that command attention.</p>
+        </div>
         
-        <!-- 音频播放区域 -->
-        <div id="audio-section" style="display: none;">
+
+        
+        <!-- Podcast Generation Form -->
+        <div class="form-container">
+            <div class="form-header">
+                <h2>Summon Your Industry Podcast</h2>
+                <p>Configure your podcast parameters and let PHEMCAST gather the voices</p>
+            </div>
+            
+            <form id="reportForm" class="report-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="urls">Enterprise Voice Sources</label>
+                        <textarea id="urls" name="urls" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required>https://blog.openai.com</textarea>
+                        <small class="form-hint">🎯 PHEMCAST will gather public voices from these enterprise blogs</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">Podcast Delivery Email</label>
+                        <input type="email" id="email" name="email" placeholder="your.email@company.com">
+                        <small class="form-hint">📧 Your summoned podcast will be delivered here (optional)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max_articles">Voice Depth per Source</label>
+                        <select id="max_articles" name="max_articles">
+                            <option value="1" selected>1 voice (Quick summon)</option>
+                            <option value="3">3 voices</option>
+                            <option value="5">5 voices</option>
+                            <option value="10">10 voices</option>
+                            <option value="20">20 voices</option>
+                        </select>
+                        <small class="form-hint">⚡ Start with 1 voice for rapid podcast generation</small>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="cta-button primary">
+                        <span>Summon Podcast</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                    
+                    <button type="button" class="cta-button secondary" onclick="openScheduledTasksModal()">
+                        <span>Schedule Auto-Summon</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="loading" class="loading-container">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <h3>Summoning Industry Voices</h3>
+                <p id="current-step">Initializing PHEMCAST...</p>
+                <div id="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%" id="progress-fill"></div>
+                    </div>
+                </div>
+                <div class="process-steps">
+                    <span class="step">🎯 Gathering voices</span>
+                    <span class="step">🧠 Analyzing insights</span>
+                    <span class="step">🎙️ Crafting podcast</span>
+                </div>
+                <div id="process-log" class="log-output"></div>
+            </div>
+        </div>
+        
+        <!-- Results -->
+        <div id="result" class="result-container"></div>
+        
+        <!-- Podcast Library Section -->
+        <div class="task-cards-section">
+            <div class="section-header">
+                <h2>Your Summoned Podcasts</h2>
+                <p>Command your collection of industry intelligence podcasts</p>
+            </div>
+            
+            <div class="task-cards-container" id="taskCardsContainer">
+                <!-- Podcast cards will be dynamically generated here -->
+                <div class="no-tasks-message" id="noTasksMessage">
+                    <div class="no-tasks-icon">🎙️</div>
+                    <h3>No podcasts summoned yet</h3>
+                    <p>Summon your first industry podcast to see it appear here</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Audio Player Section -->
+        <div id="audio-section" class="audio-section" style="display: none;">
             <div class="audio-container">
-                <h3>🎧 报告音频</h3>
-                <div id="audio-player">
-                    <audio id="report-audio" controls style="width: 100%; margin: 10px 0;">
+                <div class="audio-header">
+                    <h3>🎙️ Summoned Podcast</h3>
+                    <p>Command the voice of industry intelligence</p>
+                </div>
+                <div id="audio-player" class="audio-player">
+                    <audio id="report-audio" controls>
                         <source id="audio-source" src="" type="audio/mpeg">
-                        您的浏览器不支持音频播放。
+                        Your browser does not support audio playback.
                     </audio>
                     <div class="audio-info">
-                        <p><strong>状态:</strong> <span id="audio-status">准备就绪</span></p>
-                        <p><strong>直接链接:</strong> <a id="audio-direct-link" href="" target="_blank" style="color: #007bff;">在新窗口打开</a></p>
+                        <div class="audio-status">
+                            <span class="status-label">Status:</span>
+                            <span id="audio-status" class="status-value">Ready</span>
+                        </div>
+                        <div class="audio-link">
+                            <span class="link-label">Direct Link:</span>
+                            <a id="audio-direct-link" href="" target="_blank" class="direct-link">Open in new window</a>
+                        </div>
                     </div>
                     <div class="audio-controls">
-                        <button id="play-audio" class="audio-btn" onclick="playAudio()">▶️ 播放</button>
-                        <button id="pause-audio" class="audio-btn" onclick="pauseAudio()" style="display: none;">⏸️ 暂停</button>
-                        <button id="stop-audio" class="audio-btn" onclick="stopAudio()">⏹️ 停止</button>
-                        <button id="download-audio" class="audio-btn" onclick="downloadAudio()">💾 下载</button>
+                        <button id="play-audio" class="audio-btn play-btn" onclick="playAudio()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            Play
+                        </button>
+                        <button id="pause-audio" class="audio-btn pause-btn" onclick="pauseAudio()" style="display: none;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                            </svg>
+                            Pause
+                        </button>
+                        <button id="stop-audio" class="audio-btn stop-btn" onclick="stopAudio()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 6h12v12H6z"/>
+                            </svg>
+                            Stop
+                        </button>
+                        <button id="download-audio" class="audio-btn download-btn" onclick="downloadAudio()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                            </svg>
+                            Download
+                        </button>
                     </div>
                 </div>
             </div>
@@ -177,14 +248,44 @@
             </div>
         </div>
         
-        <div class="features">
-            <strong>Features:</strong> AI-powered analysis • Smart insights • PDF & Markdown reports • Rate-limited scraping • 🎧 Audio reports<br>
-            <strong>Quick Start:</strong> The form is pre-filled with 1 article for quick testing<br>
-            <strong>Quick Test:</strong> <a href="/static/quick-test.html" target="_blank">🚀 Try the Quick Test Page</a> for even faster testing<br>
-            <strong>Audio Test:</strong> <a href="test_audio_player.html" target="_blank">🧪 音频播放器功能测试</a><br>
-            <strong>API:</strong> POST to /api/generate-report for programmatic access
+        <!-- Features Section -->
+        <div class="features-section">
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Voice Gathering</h3>
+                    <p>PHEMCAST automatically summons public voices from enterprise blogs and industry sources</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>Intelligence Analysis</h3>
+                    <p>Advanced AI algorithms analyze and synthesize insights into compelling narratives</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎙️</div>
+                    <h3>Podcast Crafting</h3>
+                    <p>Transform industry insights into professional-grade podcasts with natural voice synthesis</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Rapid Summoning</h3>
+                    <p>Generate industry podcasts in minutes, not hours, with our optimized processing pipeline</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Auto-Summon Scheduling</h3>
+                    <p>Set up recurring podcast generation to stay ahead of industry trends automatically</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Respectful Harvesting</h3>
+                    <p>Ethical content gathering with built-in rate limiting and respectful data practices</p>
+                </div>
+            </div>
+            
+
         </div>
-    </div>
+    </main>
     
     <script src="/static/js/app.js"></script>
     
@@ -229,10 +330,77 @@
         }
         
         // 登出功能
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('userInfo');
-            window.location.href = '/login';
+        async function logout() {
+            try {
+                const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+                if (token) {
+                    // Call backend logout API to revoke session
+                    const response = await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('Logout successful:', result.message);
+                    } else if (response.status === 401) {
+                        // Token is invalid, try force logout
+                        console.warn('Token invalid, trying force logout');
+                        const forceResponse = await fetch('/api/auth/logout-force', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        if (forceResponse.ok) {
+                            console.log('Force logout successful');
+                        }
+                    } else {
+                        console.warn('Logout API call failed, but continuing with local cleanup');
+                    }
+                }
+            } catch (error) {
+                console.error('Error during logout API call:', error);
+                // Try force logout as fallback
+                try {
+                    await fetch('/api/auth/logout-force', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    console.log('Force logout fallback successful');
+                } catch (fallbackError) {
+                    console.error('Force logout fallback also failed:', fallbackError);
+                }
+            } finally {
+                // Close WebSocket connections if they exist
+                if (typeof websocket !== 'undefined' && websocket) {
+                    try {
+                        websocket.close();
+                        console.log('WebSocket connection closed');
+                    } catch (e) {
+                        console.warn('Error closing WebSocket:', e);
+                    }
+                }
+                
+                // Clear ping interval if it exists
+                if (window.pingInterval) {
+                    clearInterval(window.pingInterval);
+                    window.pingInterval = null;
+                }
+                
+                // Always clear local storage and redirect
+                localStorage.removeItem('token');
+                localStorage.removeItem('userInfo');
+                localStorage.removeItem('access_token');
+                
+                // Redirect to login page
+                window.location.href = '/login';
+            }
         }
         
         // 页面加载时检查登录状态

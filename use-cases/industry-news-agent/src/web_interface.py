@@ -20,6 +20,7 @@ setup_logging(
 )
 
 from fastapi import FastAPI, HTTPException, Form, BackgroundTasks, Depends, WebSocket, WebSocketDisconnect
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -321,6 +322,48 @@ async def register(request: RegisterRequest):
             status_code=500,
             detail=f"Failed to create user: {str(e)}"
         )
+
+
+@app.post("/api/auth/logout")
+async def logout(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
+    """User logout - revoke session token."""
+    try:
+        # Import session manager
+        from session_manager import session_manager
+        
+        # Revoke the session
+        token = credentials.credentials
+        session_revoked = session_manager.revoke_session(token)
+        
+        if session_revoked:
+            logger.info(f"Session revoked successfully for token: {token[:20]}...")
+        else:
+            logger.warning(f"Failed to revoke session for token: {token[:20]}...")
+        
+        return {
+            "message": "Logged out successfully",
+            "session_revoked": session_revoked
+        }
+        
+    except Exception as e:
+        logger.error(f"Error during logout: {str(e)}")
+        # Even if there's an error, we should still return success
+        # because the client will clear the token anyway
+        return {
+            "message": "Logged out successfully",
+            "session_revoked": False,
+            "error": "Session cleanup failed but logout completed"
+        }
+
+
+@app.post("/api/auth/logout-force")
+async def logout_force():
+    """Force logout - always returns success (for cases where token is invalid)."""
+    return {
+        "message": "Logged out successfully",
+        "session_revoked": False,
+        "note": "Force logout - token validation skipped"
+    }
 
 
 @app.post("/api/generate-report")
