@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
 import os
 from typing import Optional
+from datetime import datetime
 
 
 class DatabaseManager:
@@ -102,3 +103,94 @@ async def get_async_db():
     if not db_manager.AsyncSessionLocal:
         raise RuntimeError("Database not initialized")
     return db_manager.AsyncSessionLocal()
+
+
+async def record_task_execution(
+    task_id: str,
+    task_name: str,
+    user_id: str,
+    execution_type: str,  # "manual" or "scheduled"
+    status: str,  # "success", "error", "processing"
+    started_at: datetime,
+    completed_at: datetime = None,
+    duration: int = None,
+    total_articles: int = None,
+    total_urls: int = None,
+    report_paths: dict = None,
+    errors: list = None,
+    logs: list = None,
+    result: dict = None
+):
+    """Record task execution results to database."""
+    import json
+    import uuid
+    from sqlalchemy import text
+    
+    try:
+        db = await get_async_db()
+        async with db as session:
+            # Generate unique execution history ID
+            execution_id = str(uuid.uuid4())
+            
+            # Insert into task_execution_history
+            await session.execute(
+                text("""
+                    INSERT INTO task_execution_history 
+                    (id, task_id, task_name, user_id, execution_type, status, started_at, 
+                     completed_at, duration, total_articles, total_urls, report_paths, 
+                     errors, logs, created_at)
+                    VALUES 
+                    (:id, :task_id, :task_name, :user_id, :execution_type, :status, :started_at,
+                     :completed_at, :duration, :total_articles, :total_urls, :report_paths,
+                     :errors, :logs, :created_at)
+                """),
+                {
+                    "id": execution_id,
+                    "task_id": task_id,
+                    "task_name": task_name,
+                    "user_id": user_id,
+                    "execution_type": execution_type,
+                    "status": status,
+                    "started_at": started_at,
+                    "completed_at": completed_at,
+                    "duration": duration,
+                    "total_articles": total_articles,
+                    "total_urls": total_urls,
+                    "report_paths": json.dumps(report_paths) if report_paths else None,
+                    "errors": json.dumps(errors) if errors else None,
+                    "logs": json.dumps(logs) if logs else None,
+                    "created_at": datetime.utcnow()
+                }
+            )
+            
+            # Update scheduled_tasks table with last execution info
+            await session.execute(
+                text("""
+                    UPDATE scheduled_tasks 
+                    SET last_execution_status = :status,
+                        last_execution_result = :result,
+                        last_report_paths = :report_paths,
+                        last_execution_time = :execution_time,
+                        last_execution_duration = :duration,
+                        updated_at = :updated_at
+                    WHERE id = :task_id
+                """),
+                {
+                    "status": status,
+                    "result": json.dumps(result) if result else None,
+                    "report_paths": json.dumps(report_paths) if report_paths else None,
+                    "execution_time": completed_at or started_at,
+                    "duration": duration,
+                    "updated_at": datetime.utcnow(),
+                    "task_id": task_id
+                }
+            )
+            
+            await session.commit()
+            return execution_id
+            
+    except Exception as e:
+        print(f"Failed to record task execution: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        raise

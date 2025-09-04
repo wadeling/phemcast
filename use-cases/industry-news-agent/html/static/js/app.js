@@ -351,15 +351,10 @@ function updateTaskStatusFromWebSocket(message) {
             </div>
         `;
         
-        // Show audio player if available and add task card
+        // Add podcast card for the completed summoning (replaces old audio-container)
         console.log('WebSocket audio data:', message.data?.report_paths?.audio);
         if (message.data?.report_paths?.audio) {
-            console.log('WebSocket: Audio data found, calling showAudioPlayer');
-            if (typeof showAudioPlayer === 'function') {
-                showAudioPlayer(`/download/${currentTaskId}/audio`);
-            } else {
-                console.error('WebSocket: showAudioPlayer function not found');
-            }
+            console.log('WebSocket: Audio data found, creating task card');
             
             // Add podcast card for the completed summoning
             const taskData = {
@@ -407,44 +402,7 @@ function updateTaskStatusFromWebSocket(message) {
     }
 }
 
-// 音频播放器相关函数
-function showAudioPlayer(audioPath) {
-    const audioSection = document.getElementById('audio-section');
-    const audioSource = document.getElementById('audio-source');
-    const audioDirectLink = document.getElementById('audio-direct-link');
-    
-    if (!audioSection || !audioSource || !audioDirectLink) {
-        console.error('Audio player elements not found');
-        return;
-    }
-    
-    // 设置音频源
-    audioSource.src = audioPath;
-    
-    // 重新加载音频元素
-    const audio = document.getElementById('report-audio');
-    if (audio) {
-        audio.load();
-    }
-    
-    // 设置直接链接
-    audioDirectLink.href = audioPath;
-    
-    // 显示音频区域
-    audioSection.style.display = 'block';
-    
-    // 滚动到音频区域
-    audioSection.scrollIntoView({ behavior: 'smooth' });
-    
-    console.log('Audio player shown with path:', audioPath);
-}
-
-function hideAudioPlayer() {
-    const audioSection = document.getElementById('audio-section');
-    if (audioSection) {
-        audioSection.style.display = 'none';
-    }
-}
+// 音频播放器相关函数已移除，现在使用task-card进行音频播放
 
 // Task Cards Management
 let taskCards = [];
@@ -537,6 +495,13 @@ function addTaskCard(taskData) {
     const container = document.getElementById('taskCardsContainer');
     const noTasksMessage = document.getElementById('noTasksMessage');
     
+    // Check if task card already exists
+    const existingCard = document.getElementById(`task-card-${taskData.task_id}`);
+    if (existingCard) {
+        console.log(`Task card for ${taskData.task_id} already exists, skipping`);
+        return;
+    }
+    
     if (noTasksMessage) {
         noTasksMessage.style.display = 'none';
     }
@@ -553,8 +518,17 @@ function togglePlay(taskId) {
     const audio = document.getElementById(`audio-${taskId}`);
     const playBtn = document.getElementById(`play-btn-${taskId}`);
     
-    if (!audio || !audio.src) {
+    if (!audio) {
+        console.log('Audio element not found for task:', taskId);
+        return;
+    }
+    
+    // Check if audio has a source (either src attribute or source element)
+    const hasSource = audio.src || (audio.querySelector('source') && audio.querySelector('source').src);
+    if (!hasSource) {
         console.log('No audio source available for task:', taskId);
+        console.log('Audio element:', audio);
+        console.log('Source element:', audio.querySelector('source'));
         return;
     }
     
@@ -674,10 +648,49 @@ document.addEventListener('DOMContentLoaded', function() {
     loadExistingTaskCards();
 });
 
-function loadExistingTaskCards() {
-    // This would typically load from an API endpoint
-    // For now, we'll just show the no-tasks message
+async function loadExistingTaskCards() {
     console.log('Loading existing task cards...');
+    
+    try {
+        const response = await fetch('/api/recent-tasks');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const tasks = data.tasks || [];
+        
+        console.log(`Loaded ${tasks.length} recent tasks from server`);
+        
+        if (tasks.length > 0) {
+            // Clear the no-tasks message
+            const noTasksMessage = document.getElementById('noTasksMessage');
+            if (noTasksMessage) {
+                noTasksMessage.style.display = 'none';
+            }
+            
+            // Add each task as a card
+            tasks.forEach(taskData => {
+                console.log('Processing task data:', taskData);
+                
+                // Convert audio_url to download URL format if needed
+                if (taskData.audio_url && !taskData.audio_url.startsWith('/download/')) {
+                    taskData.audio_url = `/download/${taskData.task_id}/audio`;
+                }
+                
+                console.log('Final audio_url:', taskData.audio_url);
+                addTaskCard(taskData);
+            });
+            
+            console.log(`Successfully loaded ${tasks.length} task cards`);
+        } else {
+            console.log('No recent tasks found, showing no-tasks message');
+        }
+        
+    } catch (error) {
+        console.error('Failed to load existing task cards:', error);
+        // Don't show error to user, just log it and show no-tasks message
+    }
 }
 
 // Try alternative WebSocket URLs when primary connection fails

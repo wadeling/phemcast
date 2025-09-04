@@ -20,7 +20,7 @@ from sqlalchemy import text
 
 from settings import load_settings
 from logging_config import setup_logging, get_logger
-from database import get_async_db, init_db
+from database import get_async_db, init_db, record_task_execution
 from models import ScheduledTask
 from db_models import ScheduledTask as DBScheduledTask
 from report_generator import ReportGenerator
@@ -236,10 +236,24 @@ class TaskProcessor:
     async def execute_task(self, task: ScheduledTask):
         """Execute a scheduled task."""
         self.logger.info(f"Executing task: {task.task_name} (ID: {task.id})")
+        started_at = datetime.utcnow()
         
         try:
             # Update last_run timestamp
-            await self.update_task_last_run(task.id, datetime.utcnow())
+            await self.update_task_last_run(task.id, started_at)
+            
+            # Record task start in database
+            try:
+                await record_task_execution(
+                    task_id=task.id,
+                    task_name=task.task_name,
+                    user_id=task.user_id,
+                    execution_type="scheduled",
+                    status="processing",
+                    started_at=started_at
+                )
+            except Exception as db_error:
+                self.logger.warning(f"Failed to record task start in database: {db_error}")
             
             # Generate report using agent workflow
             if task.urls:
@@ -273,19 +287,121 @@ class TaskProcessor:
                             except Exception as email_error:
                                 self.logger.error(f"Failed to send email for task {task.id}: {email_error}")
                         
+                        # Calculate completion time and duration
+                        completed_at = datetime.utcnow()
+                        duration = int((completed_at - started_at).total_seconds())
+                        
+                        # Record task completion in database
+                        try:
+                            await record_task_execution(
+                                task_id=task.id,
+                                task_name=task.task_name,
+                                user_id=task.user_id,
+                                execution_type="scheduled",
+                                status=result.get("status", "completed"),
+                                started_at=started_at,
+                                completed_at=completed_at,
+                                duration=duration,
+                                total_articles=result.get("total_articles", 0),
+                                total_urls=result.get("total_urls", 0),
+                                report_paths=result.get("report_paths", {}),
+                                errors=result.get("errors", []),
+                                logs=result.get("logs", []),
+                                result=result
+                            )
+                        except Exception as db_error:
+                            self.logger.warning(f"Failed to record task completion in database: {db_error}")
+                        
                         self.logger.info(f"Task {task.id} completed successfully")
                     else:
                         self.logger.error(f"Agent not available for task {task.id}")
                         
+                        # Record task error in database
+                        completed_at = datetime.utcnow()
+                        duration = int((completed_at - started_at).total_seconds())
+                        try:
+                            await record_task_execution(
+                                task_id=task.id,
+                                task_name=task.task_name,
+                                user_id=task.user_id,
+                                execution_type="scheduled",
+                                status="error",
+                                started_at=started_at,
+                                completed_at=completed_at,
+                                duration=duration,
+                                errors=["Agent not available"],
+                                logs=["Agent not available for task execution"]
+                            )
+                        except Exception as db_error:
+                            self.logger.warning(f"Failed to record task error in database: {db_error}")
+                        
                 except Exception as report_error:
                     self.logger.error(f"Failed to generate report for task {task.id}: {report_error}")
+                    
+                    # Record task error in database
+                    completed_at = datetime.utcnow()
+                    duration = int((completed_at - started_at).total_seconds())
+                    try:
+                        await record_task_execution(
+                            task_id=task.id,
+                            task_name=task.task_name,
+                            user_id=task.user_id,
+                            execution_type="scheduled",
+                            status="error",
+                            started_at=started_at,
+                            completed_at=completed_at,
+                            duration=duration,
+                            errors=[str(report_error)],
+                            logs=[f"Failed to generate report: {str(report_error)}"]
+                        )
+                    except Exception as db_error:
+                        self.logger.warning(f"Failed to record task error in database: {db_error}")
+                    
                     # Continue execution even if report generation fails
             else:
                 self.logger.warning(f"Task {task.id} has no URLs")
                 
+                # Record task error in database
+                completed_at = datetime.utcnow()
+                duration = int((completed_at - started_at).total_seconds())
+                try:
+                    await record_task_execution(
+                        task_id=task.id,
+                        task_name=task.task_name,
+                        user_id=task.user_id,
+                        execution_type="scheduled",
+                        status="error",
+                        started_at=started_at,
+                        completed_at=completed_at,
+                        duration=duration,
+                        errors=["No URLs provided"],
+                        logs=["Task has no URLs to process"]
+                    )
+                except Exception as db_error:
+                    self.logger.warning(f"Failed to record task error in database: {db_error}")
+                
         except Exception as e:
             self.logger.error(f"Failed to execute task {task.id}: {e}")
             traceback.print_exc()
+            
+            # Record task error in database
+            completed_at = datetime.utcnow()
+            duration = int((completed_at - started_at).total_seconds())
+            try:
+                await record_task_execution(
+                    task_id=task.id,
+                    task_name=task.task_name,
+                    user_id=task.user_id,
+                    execution_type="scheduled",
+                    status="error",
+                    started_at=started_at,
+                    completed_at=completed_at,
+                    duration=duration,
+                    errors=[str(e)],
+                    logs=[f"Task execution failed: {str(e)}"]
+                )
+            except Exception as db_error:
+                self.logger.warning(f"Failed to record task error in database: {db_error}")
     
     async def update_task_last_run(self, task_id: str, last_run: datetime):
         """Update the last_run timestamp for a task."""

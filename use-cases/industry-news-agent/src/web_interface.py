@@ -31,7 +31,7 @@ from typing import List
 
 from agent import create_agent
 from models import TaskStatus
-from database import init_db, get_async_db
+from database import init_db, get_async_db, record_task_execution
 from db_models import User
 from task_manager import task_manager
 from auth import (
@@ -329,10 +329,11 @@ async def logout(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(
     """User logout - revoke session token."""
     try:
         # Import session manager
-        from session_manager import session_manager
+        from session_manager import get_session_manager
         
         # Revoke the session
         token = credentials.credentials
+        session_manager = get_session_manager()
         session_revoked = session_manager.revoke_session(token)
         
         if session_revoked:
@@ -489,23 +490,109 @@ async def list_tasks():
     ]
 
 
+@app.get("/api/recent-tasks")
+async def get_recent_tasks():
+    """Get the 5 most recent completed tasks from task_execution_history."""
+    try:
+        from sqlalchemy import text
+        
+        db = await get_async_db()
+        async with db as session:
+            # Query the 5 most recent completed tasks
+            result = await session.execute(
+                text("""
+                    SELECT 
+                        id, task_id, task_name, user_id, execution_type,
+                        status, started_at, completed_at, duration,
+                        total_articles, total_urls, report_paths, errors, logs, created_at
+                    FROM task_execution_history 
+                    WHERE status = 'completed' 
+                    ORDER BY completed_at DESC 
+                    LIMIT 5
+                """)
+            )
+            rows = result.fetchall()
+            
+            tasks = []
+            for row in rows:
+                # Parse JSON fields
+                report_paths = {}
+                if row.report_paths:
+                    try:
+                        report_paths = json.loads(row.report_paths)
+                    except json.JSONDecodeError:
+                        report_paths = {}
+                
+                logger.debug(f"Task {row.task_id} report_paths: {report_paths}")
+                
+                # Create task data in the format expected by frontend
+                task_data = {
+                    "task_id": row.task_id,
+                    "task_name": row.task_name or f"Industry Intelligence {row.task_id[:8]}",
+                    "description": f"PHEMCAST summoned {row.total_articles or 0} industry voices into compelling podcast narrative",
+                    "audio_url": report_paths.get("audio", ""),
+                    "created_at": row.completed_at.isoformat() if row.completed_at else row.created_at.isoformat(),
+                    "total_articles": row.total_articles or 0,
+                    "total_urls": row.total_urls or 0,
+                    "duration": row.duration or 0,
+                    "execution_type": row.execution_type,
+                    "report_paths": report_paths
+                }
+                
+                logger.debug(f"Task {row.task_id} audio_url: {task_data['audio_url']}")
+                tasks.append(task_data)
+            
+            logger.info(f"Retrieved {len(tasks)} recent completed tasks")
+            return {"tasks": tasks}
+            
+    except Exception as e:
+        logger.error(f"Failed to get recent tasks: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve recent tasks: {str(e)}")
+
+
 @app.get("/download/{task_id}/{format_type}")
 async def download_report(task_id: str, format_type: str):
     """Download generated report by format type (simple endpoint)."""
-    if task_id not in running_tasks:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    task_info = running_tasks[task_id]
-    
-    if task_info.get("status") != "completed":
-        raise HTTPException(status_code=400, detail="Task not completed")
-    
-    report_paths = task_info.get("result", {}).get("report_paths", {})
-    
-    if format_type not in report_paths:
-        raise HTTPException(status_code=404, detail=f"{format_type} report not available")
-    
-    file_path = Path(report_paths[format_type])
+    try:
+        from sqlalchemy import text
+        
+        db = await get_async_db()
+        async with db as session:
+            # Query task from task_execution_history table
+            result = await session.execute(
+                text("""
+                    SELECT 
+                        task_id, task_name, status, report_paths, completed_at
+                    FROM task_execution_history 
+                    WHERE task_id = :task_id AND status = 'completed'
+                    ORDER BY completed_at DESC 
+                    LIMIT 1
+                """),
+                {"task_id": task_id}
+            )
+            row = result.fetchone()
+            
+            if not row:
+                raise HTTPException(status_code=404, detail="Task not found or not completed")
+            
+            # Parse report_paths JSON
+            report_paths = {}
+            if row.report_paths:
+                try:
+                    report_paths = json.loads(row.report_paths)
+                except json.JSONDecodeError:
+                    raise HTTPException(status_code=500, detail="Invalid report paths data")
+            
+            if format_type not in report_paths:
+                raise HTTPException(status_code=404, detail=f"{format_type} report not available")
+            
+            file_path = Path(report_paths[format_type])
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get task info from database: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve task information")
     
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Report file not found")
@@ -560,13 +647,30 @@ async def _process_report_task(
     task_id: str, 
     urls: List[str], 
     email: Optional[str], 
-    max_articles: int
+    max_articles: int,
+    user_id: str = "anonymous",
+    task_name: str = "Manual Report Generation"
 ):
     """Background task for processing reports."""
+    started_at = datetime.utcnow()
+    
     try:
         # Update status to processing
         running_tasks[task_id]["status"] = "processing"
-        running_tasks[task_id]["started_at"] = datetime.now().isoformat()
+        running_tasks[task_id]["started_at"] = started_at.isoformat()
+        
+        # Record task start in database
+        try:
+            await record_task_execution(
+                task_id=task_id,
+                task_name=task_name,
+                user_id=user_id,
+                execution_type="manual",
+                status="processing",
+                started_at=started_at
+            )
+        except Exception as db_error:
+            logger.warning(f"Failed to record task start in database: {db_error}")
         
         # Broadcast processing status
         await manager.broadcast({
@@ -580,10 +684,14 @@ async def _process_report_task(
         agent = create_agent()
         result = await agent.run_workflow(urls, [email] if email else None, max_articles)
         
+        # Calculate completion time and duration
+        completed_at = datetime.utcnow()
+        duration = int((completed_at - started_at).total_seconds())
+        
         # Update task with enhanced results
         running_tasks[task_id].update({
             "status": result["status"],
-            "completed_at": datetime.now().isoformat(),
+            "completed_at": completed_at.isoformat(),
             "result": result,
             "report_paths": result.get("report_paths", {}),
             "report_path_md": result.get("report_paths", {}).get("markdown", ""),
@@ -595,6 +703,27 @@ async def _process_report_task(
             "logs": result.get("logs", []),
             "errors": result.get("errors", [])
         })
+        
+        # Record task completion in database
+        try:
+            await record_task_execution(
+                task_id=task_id,
+                task_name=task_name,
+                user_id=user_id,
+                execution_type="manual",
+                status=result["status"],
+                started_at=started_at,
+                completed_at=completed_at,
+                duration=duration,
+                total_articles=result.get("total_articles", 0),
+                total_urls=result.get("total_urls", 0),
+                report_paths=result.get("report_paths", {}),
+                errors=result.get("errors", []),
+                logs=result.get("logs", []),
+                result=result
+            )
+        except Exception as db_error:
+            logger.warning(f"Failed to record task completion in database: {db_error}")
         
         logger.info(f"Task {task_id} completed: {result['status']}")
         
@@ -613,12 +742,34 @@ async def _process_report_task(
         
     except Exception as e:
         logger.error(f"Task {task_id} failed: {str(e)}")
+        
+        # Calculate completion time and duration for error case
+        completed_at = datetime.utcnow()
+        duration = int((completed_at - started_at).total_seconds())
+        
         running_tasks[task_id].update({
             "status": "error",
             "error": str(e),
             "logs": [f"❌ Processing failed: {str(e)}", "📋 See error details above"],
-            "completed_at": datetime.now().isoformat()
+            "completed_at": completed_at.isoformat()
         })
+        
+        # Record task error in database
+        try:
+            await record_task_execution(
+                task_id=task_id,
+                task_name=task_name,
+                user_id=user_id,
+                execution_type="manual",
+                status="error",
+                started_at=started_at,
+                completed_at=completed_at,
+                duration=duration,
+                errors=[str(e)],
+                logs=[f"❌ Processing failed: {str(e)}", "📋 See error details above"]
+            )
+        except Exception as db_error:
+            logger.warning(f"Failed to record task error in database: {db_error}")
         
         # Broadcast error status
         await manager.broadcast({

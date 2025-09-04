@@ -4,17 +4,23 @@ import uuid
 import time
 from datetime import datetime, timedelta
 from typing import Optional, Dict
-import qrcode
+try:
+    import qrcode
+    QRCODE_AVAILABLE = True
+except ImportError:
+    QRCODE_AVAILABLE = False
 import base64
 from io import BytesIO
 
 try:
-    from models import User, WeChatLoginState, LoginResponse
-    from settings import get_settings
+    from db_models import User
+    from models import WeChatLoginState, LoginResponse
+    from settings import load_settings
     from logging_config import get_logger
 except ImportError:
-    from models import User, WeChatLoginState, LoginResponse
-    from settings import get_settings
+    from db_models import User
+    from models import WeChatLoginState, LoginResponse
+    from settings import load_settings
     from logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -24,7 +30,7 @@ class WeChatAuthService:
     """WeChat authentication service for handling QR code login."""
     
     def __init__(self):
-        self.settings = get_settings()
+        self.settings = load_settings()
         self.login_states: Dict[str, WeChatLoginState] = {}
         self.users: Dict[str, User] = {}  # In production, use database
         self._cleanup_task = None
@@ -47,19 +53,23 @@ class WeChatAuthService:
             # Create QR code content (in production, this would be a WeChat URL)
             qr_content = f"https://open.weixin.qq.com/connect/qrconnect?appid={self.settings.wechat_app_id}&redirect_uri={self.settings.host}:{self.settings.port}/api/wechat/callback&response_type=code&scope=snsapi_login&state={state_id}#wechat_redirect"
             
-            # Generate QR code image
-            qr = qrcode.QRCode(version=1, box_size=10, border=5)
-            qr.add_data(qr_content)
-            qr.make(fit=True)
-            
-            # Create QR code image
-            img = qr.make_image(fill_color="black", back_color="white")
-            
-            # Convert to base64
-            buffer = BytesIO()
-            img.save(buffer, format='PNG')
-            qr_code_base64 = base64.b64encode(buffer.getvalue()).decode()
-            qr_code_url = f"data:image/png;base64,{qr_code_base64}"
+            if QRCODE_AVAILABLE:
+                # Generate QR code image
+                qr = qrcode.QRCode(version=1, box_size=10, border=5)
+                qr.add_data(qr_content)
+                qr.make(fit=True)
+                
+                # Create QR code image
+                img = qr.make_image(fill_color="black", back_color="white")
+                
+                # Convert to base64
+                buffer = BytesIO()
+                img.save(buffer, format='PNG')
+                qr_code_base64 = base64.b64encode(buffer.getvalue()).decode()
+                qr_code_url = f"data:image/png;base64,{qr_code_base64}"
+            else:
+                # Fallback: return QR content as text
+                qr_code_url = f"data:text/plain;base64,{base64.b64encode(qr_content.encode()).decode()}"
             
             # Create login state
             expires_at = datetime.now() + timedelta(seconds=self.settings.qr_code_expire_seconds)

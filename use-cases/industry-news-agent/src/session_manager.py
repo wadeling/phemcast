@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict
 from jose import JWTError, jwt
 
-from models import User
-from settings import get_settings
+from db_models import User
+from settings import load_settings
 from logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,7 +16,7 @@ class SessionManager:
     """Manages user sessions and JWT tokens."""
     
     def __init__(self):
-        self.settings = get_settings()
+        self.settings = load_settings()
         self.active_sessions: Dict[str, Dict] = {}  # In production, use Redis
     
     def create_session(self, user: User) -> str:
@@ -135,5 +135,12 @@ class SessionManager:
         return len(self.active_sessions)
 
 
-# Global instance
-session_manager = SessionManager()
+# Global instance (lazy initialization)
+session_manager = None
+
+def get_session_manager():
+    """Get the global session manager instance."""
+    global session_manager
+    if session_manager is None:
+        session_manager = SessionManager()
+    return session_manager

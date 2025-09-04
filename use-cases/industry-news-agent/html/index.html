@@ -137,57 +137,6 @@
             </div>
         </div>
         
-        <!-- Audio Player Section -->
-        <div id="audio-section" class="audio-section" style="display: none;">
-            <div class="audio-container">
-                <div class="audio-header">
-                    <h3>🎙️ Summoned Podcast</h3>
-                    <p>Command the voice of industry intelligence</p>
-                </div>
-                <div id="audio-player" class="audio-player">
-                    <audio id="report-audio" controls>
-                        <source id="audio-source" src="" type="audio/mpeg">
-                        Your browser does not support audio playback.
-                    </audio>
-                    <div class="audio-info">
-                        <div class="audio-status">
-                            <span class="status-label">Status:</span>
-                            <span id="audio-status" class="status-value">Ready</span>
-                        </div>
-                        <div class="audio-link">
-                            <span class="link-label">Direct Link:</span>
-                            <a id="audio-direct-link" href="" target="_blank" class="direct-link">Open in new window</a>
-                        </div>
-                    </div>
-                    <div class="audio-controls">
-                        <button id="play-audio" class="audio-btn play-btn" onclick="playAudio()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z"/>
-                            </svg>
-                            Play
-                        </button>
-                        <button id="pause-audio" class="audio-btn pause-btn" onclick="pauseAudio()" style="display: none;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                            </svg>
-                            Pause
-                        </button>
-                        <button id="stop-audio" class="audio-btn stop-btn" onclick="stopAudio()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M6 6h12v12H6z"/>
-                            </svg>
-                            Stop
-                        </button>
-                        <button id="download-audio" class="audio-btn download-btn" onclick="downloadAudio()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                            </svg>
-                            Download
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
         
         <!-- 定时任务管理弹窗 -->
         <div id="scheduledTasksModal" class="modal" style="display: none;">

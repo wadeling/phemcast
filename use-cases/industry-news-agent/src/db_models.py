@@ -52,6 +52,40 @@ class ScheduledTask(Base):
     last_run = Column(DateTime, nullable=True)
     next_run = Column(DateTime, nullable=True)
     
+    # Task execution results (for both manual and scheduled tasks)
+    last_execution_status = Column(String(20), nullable=True)  # success, error, processing
+    last_execution_result = Column(Text, nullable=True)  # JSON string of execution results
+    last_report_paths = Column(Text, nullable=True)  # JSON string of report paths
+    last_execution_time = Column(DateTime, nullable=True)
+    last_execution_duration = Column(Integer, nullable=True)  # duration in seconds
+    
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class TaskExecutionHistory(Base):
+    """Task execution history table for detailed tracking."""
+    __tablename__ = "task_execution_history"
+    
+    id = Column(String(50), primary_key=True, index=True)
+    task_id = Column(String(50), nullable=False, index=True)  # Reference to scheduled_tasks.id
+    task_name = Column(String(255), nullable=False)
+    user_id = Column(String(100), nullable=False, index=True)
+    execution_type = Column(String(20), nullable=False)  # manual, scheduled
+    
+    # Execution details
+    status = Column(String(20), nullable=False)  # success, error, processing
+    started_at = Column(DateTime, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    duration = Column(Integer, nullable=True)  # duration in seconds
+    
+    # Results
+    total_articles = Column(Integer, nullable=True)
+    total_urls = Column(Integer, nullable=True)
+    report_paths = Column(Text, nullable=True)  # JSON string of report paths
+    errors = Column(Text, nullable=True)  # JSON string of errors
+    logs = Column(Text, nullable=True)  # JSON string of logs
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
