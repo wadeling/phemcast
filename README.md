@@ -1,296 +1,285 @@
-# Context Engineering Template
+# Industry News Aggregation Agent
 
-A comprehensive template for getting started with Context Engineering - the discipline of engineering context for AI coding assistants so they have the information necessary to get the job done end to end.
+A comprehensive AI-powered system that automatically crawls company blogs, analyzes content, and generates weekly industry reports using LangGraph for workflow orchestration.
 
-> **Context Engineering is 10x better than prompt engineering and 100x better than vibe coding.**
+## 🚀 Features
 
-## 🚀 Quick Start
+- **Intelligent Web Scraping**: Crawls multiple company blog URLs with rate limiting and error handling
+- **AI-Powered Content Analysis**: Uses OpenAI to summarize and analyze article content
+- **Multi-Format Report Generation**: Creates reports in both Markdown and PDF formats
+- **Web Interface**: User-friendly web application for inputting blog URLs and email addresses
+- **Email Delivery**: Automatically sends generated reports to specified email addresses
+- **Multiple Email Services**: Supports both Tencent Cloud SES and traditional SMTP
+- **LangGraph Workflow**: Robust state management and workflow orchestration
+
+## 📋 Requirements
+
+- Python 3.8+
+- OpenAI API key
+- SMTP email credentials
+- Virtual environment (recommended)
+
+## 🛠️ Installation
+
+1. **Clone the repository and navigate to the project:**
+   ```bash
+   cd use-cases/industry-news-agent
+   ```
+
+2. **Create and activate a virtual environment:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys and email settings
+   ```
+
+## 🔧 Configuration
+
+Create a `.env` file with the following variables:
+
+```env
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4
+OPENAI_BASE_URL=https://api.openai.com/v1  # Optional: for OpenAI-compatible endpoints
+
+# Email Configuration - Choose one option:
+
+# Option 1: Tencent Cloud SES (Recommended)
+TENCENT_CLOUD_SECRET_ID=your_tencent_cloud_secret_id
+TENCENT_CLOUD_SECRET_KEY=your_tencent_cloud_secret_key
+TENCENT_CLOUD_REGION=ap-guangzhou
+TENCENT_FROM_EMAIL=your_verified_email@yourdomain.com
+
+# Option 2: Traditional SMTP
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+EMAIL_USERNAME=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password
+
+# Web Scraping Configuration
+REQUEST_DELAY=1.0
+MAX_RETRIES=3
+TIMEOUT=30
+
+# Application Configuration
+DEBUG=True
+HOST=0.0.0.0
+PORT=8000
+```
+
+### Email Service Configuration
+
+The system automatically detects and uses the best available email service:
+
+1. **Tencent Cloud SES** (Recommended): More reliable, secure, and cost-effective
+   - Set `TENCENT_CLOUD_SECRET_ID` and `TENCENT_CLOUD_SECRET_KEY`
+   - Configure `TENCENT_FROM_EMAIL` with your verified sender address
+   - Choose `TENCENT_CLOUD_REGION` based on your location (default: ap-guangzhou)
+   - **Template Support**: Set `TENCENT_TEMPLATE_ID` for template-based emails
+   - **Content Mode**: Set `TENCENT_USE_TEMPLATE=false` for direct HTML/text content
+   - See [Tencent Cloud Setup Guide](TENCENT_CLOUD_SETUP.md) for detailed instructions
+
+2. **SMTP Fallback**: Traditional email service
+   - Set SMTP server details and credentials
+   - Used when Tencent Cloud SES is not configured
+
+**Tencent Cloud Email Modes:**
+- **Template Mode** (Default): Uses pre-configured email templates with dynamic content
+- **Direct Content Mode**: Sends custom HTML and text content directly
+
+**Region Selection Tips:**
+- `ap-guangzhou` (Guangzhou): Recommended for Mainland China users
+- `ap-hongkong` (Hong Kong): Good for Hong Kong/Taiwan users
+- `ap-singapore` (Singapore): Good for Southeast Asia users
+- `eu-frankfurt` (Frankfurt): Good for European users
+- `na-ashburn` (Virginia): Good for US East Coast users
+
+For detailed Tencent Cloud SES setup instructions, see [TENCENT_CLOUD_SETUP.md](TENCENT_CLOUD_SETUP.md).
+
+## 🏗️ Project Structure
+
+```
+industry-news-agent/
+├── src/
+│   ├── agent.py              # Main LangGraph agent definition
+│   ├── tools.py              # Web scraping and analysis tools
+│   ├── models.py             # Pydantic models and state management
+│   ├── web_interface.py      # FastAPI web application
+│   ├── email_service.py      # Email sending functionality
+│   └── report_generator.py   # Report generation (Markdown/PDF)
+├── examples/
+│   ├── basic_agent/          # Simple LangGraph agent example
+│   ├── web_interface/        # FastAPI web app example
+│   ├── email_service/        # Email service example
+│   └── report_generator/     # Report generation example
+├── tests/
+│   ├── unit/                 # Unit tests for each component
+│   └── integration/          # Integration tests
+├── PRPs/                     # Product Requirements Prompts
+├── requirements.txt           # Python dependencies
+├── .env.example              # Environment variables template
+└── README.md                 # This file
+```
+
+## 🚀 Usage
+
+### Quick Setup
+
+1. **Run the setup script:**
+   ```bash
+   python setup_tencent_email.py
+   ```
+
+2. **Get help with region selection:**
+   ```bash
+   python select_region.py
+   ```
+
+3. **Validate your configuration:**
+   ```bash
+   python validate_email_config.py
+   ```
+
+4. **Test the email service:**
+   ```bash
+   python test_tencent_email.py
+   ```
+
+5. **Start the web interface:**
+   ```bash
+   python -m src.web_interface
+   ```
+
+### Logging Configuration
+
+The application includes advanced logging with file line numbers and function names:
 
 ```bash
-# 1. Clone this template
-git clone https://github.com/coleam00/Context-Engineering-Intro.git
-cd Context-Engineering-Intro
+# Test logging configuration
+python test_logging.py
 
-# 2. Set up your project rules (optional - template provided)
-# Edit CLAUDE.md to add your project-specific guidelines
-
-# 3. Add examples (highly recommended)
-# Place relevant code examples in the examples/ folder
-
-# 4. Create your initial feature request
-# Edit INITIAL.md with your feature requirements
-
-# 5. Generate a comprehensive PRP (Product Requirements Prompt)
-# In Claude Code, run:
-/generate-prp INITIAL.md
-
-# 6. Execute the PRP to implement your feature
-# In Claude Code, run:
-/execute-prp PRPs/your-feature-name.md
+# Configure logging in .env file
+LOG_LEVEL=DEBUG                    # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_FILE=logs/app.log             # Optional: log to file
+SHOW_FILE_LINE=true               # Show file:line in logs
+SHOW_FUNCTION=true                # Show function name in logs
 ```
 
-## 📚 Table of Contents
+**Log Format Examples:**
+- **Full format**: `2024-01-15 10:30:45 - module_name - INFO - filename.py:123 - function_name - Message`
+- **File line only**: `2024-01-15 10:30:45 - module_name - INFO - filename.py:123 - Message`
+- **Simple format**: `2024-01-15 10:30:45 - module_name - INFO - Message`
 
-- [What is Context Engineering?](#what-is-context-engineering)
-- [Template Structure](#template-structure)
-- [Step-by-Step Guide](#step-by-step-guide)
-- [Writing Effective INITIAL.md Files](#writing-effective-initialmd-files)
-- [The PRP Workflow](#the-prp-workflow)
-- [Using Examples Effectively](#using-examples-effectively)
-- [Best Practices](#best-practices)
+### Configuration Migration
 
-## What is Context Engineering?
-
-Context Engineering represents a paradigm shift from traditional prompt engineering:
-
-### Prompt Engineering vs Context Engineering
-
-**Prompt Engineering:**
-- Focuses on clever wording and specific phrasing
-- Limited to how you phrase a task
-- Like giving someone a sticky note
-
-**Context Engineering:**
-- A complete system for providing comprehensive context
-- Includes documentation, examples, rules, patterns, and validation
-- Like writing a full screenplay with all the details
-
-### Why Context Engineering Matters
-
-1. **Reduces AI Failures**: Most agent failures aren't model failures - they're context failures
-2. **Ensures Consistency**: AI follows your project patterns and conventions
-3. **Enables Complex Features**: AI can handle multi-step implementations with proper context
-4. **Self-Correcting**: Validation loops allow AI to fix its own mistakes
-
-## Template Structure
-
-```
-context-engineering-intro/
-├── .claude/
-│   ├── commands/
-│   │   ├── generate-prp.md    # Generates comprehensive PRPs
-│   │   └── execute-prp.md     # Executes PRPs to implement features
-│   └── settings.local.json    # Claude Code permissions
-├── PRPs/
-│   ├── templates/
-│   │   └── prp_base.md       # Base template for PRPs
-│   └── EXAMPLE_multi_agent_prp.md  # Example of a complete PRP
-├── examples/                  # Your code examples (critical!)
-├── CLAUDE.md                 # Global rules for AI assistant
-├── INITIAL.md               # Template for feature requests
-├── INITIAL_EXAMPLE.md       # Example feature request
-└── README.md                # This file
-```
-
-This template doesn't focus on RAG and tools with context engineering because I have a LOT more in store for that soon. ;)
-
-## Step-by-Step Guide
-
-### 1. Set Up Global Rules (CLAUDE.md)
-
-The `CLAUDE.md` file contains project-wide rules that the AI assistant will follow in every conversation. The template includes:
-
-- **Project awareness**: Reading planning docs, checking tasks
-- **Code structure**: File size limits, module organization
-- **Testing requirements**: Unit test patterns, coverage expectations
-- **Style conventions**: Language preferences, formatting rules
-- **Documentation standards**: Docstring formats, commenting practices
-
-**You can use the provided template as-is or customize it for your project.**
-
-### 2. Create Your Initial Feature Request
-
-Edit `INITIAL.md` to describe what you want to build:
-
-```markdown
-## FEATURE:
-[Describe what you want to build - be specific about functionality and requirements]
-
-## EXAMPLES:
-[List any example files in the examples/ folder and explain how they should be used]
-
-## DOCUMENTATION:
-[Include links to relevant documentation, APIs, or MCP server resources]
-
-## OTHER CONSIDERATIONS:
-[Mention any gotchas, specific requirements, or things AI assistants commonly miss]
-```
-
-**See `INITIAL_EXAMPLE.md` for a complete example.**
-
-### 3. Generate the PRP
-
-PRPs (Product Requirements Prompts) are comprehensive implementation blueprints that include:
-
-- Complete context and documentation
-- Implementation steps with validation
-- Error handling patterns
-- Test requirements
-
-They are similar to PRDs (Product Requirements Documents) but are crafted more specifically to instruct an AI coding assistant.
-
-Run in Claude Code:
-```bash
-/generate-prp INITIAL.md
-```
-
-**Note:** The slash commands are custom commands defined in `.claude/commands/`. You can view their implementation:
-- `.claude/commands/generate-prp.md` - See how it researches and creates PRPs
-- `.claude/commands/execute-prp.md` - See how it implements features from PRPs
-
-The `$ARGUMENTS` variable in these commands receives whatever you pass after the command name (e.g., `INITIAL.md` or `PRPs/your-feature.md`).
-
-This command will:
-1. Read your feature request
-2. Research the codebase for patterns
-3. Search for relevant documentation
-4. Create a comprehensive PRP in `PRPs/your-feature-name.md`
-
-### 4. Execute the PRP
-
-Once generated, execute the PRP to implement your feature:
+If you have an existing configuration with the old format, you can migrate it:
 
 ```bash
-/execute-prp PRPs/your-feature-name.md
+# 迁移旧格式配置到新格式
+python migrate_config.py
 ```
 
-The AI coding assistant will:
-1. Read all context from the PRP
-2. Create a detailed implementation plan
-3. Execute each step with validation
-4. Run tests and fix any issues
-5. Ensure all success criteria are met
+**Old format:** `TENCENTCLOUD_SECRET_ID`, `TENCENTCLOUD_SECRET_KEY`  
+**New format:** `TENCENT_CLOUD_SECRET_ID`, `TENCENT_CLOUD_SECRET_KEY`
 
-## Writing Effective INITIAL.md Files
+### Web Interface
 
-### Key Sections Explained
+1. **Start the web server:**
+   ```bash
+   python -m src.web_interface
+   ```
 
-**FEATURE**: Be specific and comprehensive
-- ❌ "Build a web scraper"
-- ✅ "Build an async web scraper using BeautifulSoup that extracts product data from e-commerce sites, handles rate limiting, and stores results in PostgreSQL"
+2. **Open your browser** and navigate to `http://localhost:8000`
 
-**EXAMPLES**: Leverage the examples/ folder
-- Place relevant code patterns in `examples/`
-- Reference specific files and patterns to follow
-- Explain what aspects should be mimicked
+3. **Enter company blog URLs** (one per line) and your email address
 
-**DOCUMENTATION**: Include all relevant resources
-- API documentation URLs
-- Library guides
-- MCP server documentation
-- Database schemas
+4. **Submit the form** to start the report generation process
 
-**OTHER CONSIDERATIONS**: Capture important details
-- Authentication requirements
-- Rate limits or quotas
-- Common pitfalls
-- Performance requirements
+### Command Line Interface
 
-## The PRP Workflow
+```bash
+# Generate a report for specific URLs
+python -m src.cli --urls "https://blog.company1.com,https://blog.company2.com" --email user@example.com
 
-### How /generate-prp Works
-
-The command follows this process:
-
-1. **Research Phase**
-   - Analyzes your codebase for patterns
-   - Searches for similar implementations
-   - Identifies conventions to follow
-
-2. **Documentation Gathering**
-   - Fetches relevant API docs
-   - Includes library documentation
-   - Adds gotchas and quirks
-
-3. **Blueprint Creation**
-   - Creates step-by-step implementation plan
-   - Includes validation gates
-   - Adds test requirements
-
-4. **Quality Check**
-   - Scores confidence level (1-10)
-   - Ensures all context is included
-
-### How /execute-prp Works
-
-1. **Load Context**: Reads the entire PRP
-2. **Plan**: Creates detailed task list using TodoWrite
-3. **Execute**: Implements each component
-4. **Validate**: Runs tests and linting
-5. **Iterate**: Fixes any issues found
-6. **Complete**: Ensures all requirements met
-
-See `PRPs/EXAMPLE_multi_agent_prp.md` for a complete example of what gets generated.
-
-## Using Examples Effectively
-
-The `examples/` folder is **critical** for success. AI coding assistants perform much better when they can see patterns to follow.
-
-### What to Include in Examples
-
-1. **Code Structure Patterns**
-   - How you organize modules
-   - Import conventions
-   - Class/function patterns
-
-2. **Testing Patterns**
-   - Test file structure
-   - Mocking approaches
-   - Assertion styles
-
-3. **Integration Patterns**
-   - API client implementations
-   - Database connections
-   - Authentication flows
-
-4. **CLI Patterns**
-   - Argument parsing
-   - Output formatting
-   - Error handling
-
-### Example Structure
-
-```
-examples/
-├── README.md           # Explains what each example demonstrates
-├── cli.py             # CLI implementation pattern
-├── agent/             # Agent architecture patterns
-│   ├── agent.py      # Agent creation pattern
-│   ├── tools.py      # Tool implementation pattern
-│   └── providers.py  # Multi-provider pattern
-└── tests/            # Testing patterns
-    ├── test_agent.py # Unit test patterns
-    └── conftest.py   # Pytest configuration
+# Generate a report from a file containing URLs
+python -m src.cli --url-file urls.txt --email user@example.com
 ```
 
-## Best Practices
+## 🔄 LangGraph Workflow
 
-### 1. Be Explicit in INITIAL.md
-- Don't assume the AI knows your preferences
-- Include specific requirements and constraints
-- Reference examples liberally
+The agent uses LangGraph for workflow orchestration with the following nodes:
 
-### 2. Provide Comprehensive Examples
-- More examples = better implementations
-- Show both what to do AND what not to do
-- Include error handling patterns
+1. **URL Validation**: Validates and normalizes blog URLs
+2. **Content Scraping**: Crawls articles from each blog with rate limiting
+3. **Content Analysis**: Uses AI to summarize and analyze articles
+4. **Report Generation**: Creates Markdown and PDF reports
+5. **Email Delivery**: Sends reports to specified email addresses
 
-### 3. Use Validation Gates
-- PRPs include test commands that must pass
-- AI will iterate until all validations succeed
-- This ensures working code on first try
+## 🧪 Testing
 
-### 4. Leverage Documentation
-- Include official API docs
-- Add MCP server resources
-- Reference specific documentation sections
+Run the test suite:
 
-### 5. Customize CLAUDE.md
-- Add your conventions
-- Include project-specific rules
-- Define coding standards
+```bash
+# Run all tests
+pytest
 
-## Resources
+# Run specific test categories
+pytest tests/unit/
+pytest tests/integration/
 
-- [Claude Code Documentation](https://docs.anthropic.com/en/docs/claude-code)
-- [Context Engineering Best Practices](https://www.philschmid.de/context-engineering)
+# Run with coverage
+pytest --cov=src
+```
+
+## 📊 Supported Blog Platforms
+
+- **WordPress**: Standard WordPress blogs with RSS feeds
+- **Medium**: Medium publications and personal blogs
+- **Custom CMS**: Generic HTML parsing for custom platforms
+- **RSS Feeds**: Direct RSS feed processing
+
+## 🔒 Security & Best Practices
+
+- **Rate Limiting**: Configurable delays between requests to avoid being blocked
+- **User Agent Rotation**: Rotates user agents to avoid detection
+- **Error Handling**: Robust error handling for network failures and parsing errors
+- **Content Deduplication**: Avoids processing the same articles multiple times
+- **Environment Variables**: Secure configuration management
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Troubleshooting
+
+### Common Issues
+
+1. **Rate Limiting**: If you're getting blocked, increase the `REQUEST_DELAY` in your `.env` file
+2. **Email Issues**: Make sure to use an app password for Gmail, not your regular password
+3. **API Limits**: Monitor your OpenAI API usage to avoid hitting rate limits
+4. **Memory Issues**: For large reports, consider processing URLs in batches
+
+### Getting Help
+
+- Check the logs for detailed error messages
+- Verify your environment variables are set correctly
+- Test individual components using the examples in the `examples/` directory
