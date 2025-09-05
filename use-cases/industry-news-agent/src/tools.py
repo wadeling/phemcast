@@ -140,7 +140,9 @@ class AIContentAnalysisTool(BaseTool):
             openai_api_base=settings.openai_base_url,
             model=settings.openai_model,
             temperature=0.3,
-            max_tokens=settings.max_tokens_per_article
+            max_tokens=settings.max_tokens_per_article,
+            http_client=None,  # Use default async client
+            http_async_client=None  # Ensure async client is used
         )
     
     async def _arun(self, articles: List[Article], analysis_config: Dict = None) -> List[Article]:
@@ -273,11 +275,16 @@ class AIContentAnalysisTool(BaseTool):
         
         chain = prompt | self.llm
         
-        result = await chain.ainvoke({
-            "title": article.title,
-            "content": article.content[:config.max_tokens_per_summary * 4],  # Approximate char limit
-            "summary_length": config.summary_length
-        })
+        # Use asyncio.to_thread to avoid blocking the event loop
+        import asyncio
+        result = await asyncio.to_thread(
+            chain.invoke,
+            {
+                "title": article.title,
+                "content": article.content[:config.max_tokens_per_summary * 4],  # Approximate char limit
+                "summary_length": config.summary_length
+            }
+        )
         
         try:
             analysis = json.loads(result.content)

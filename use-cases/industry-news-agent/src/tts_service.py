@@ -205,8 +205,10 @@ class MinimaxiTTSService:
             # 创建 OpenAI 客户端（新版本）
             client = openai.OpenAI(api_key=self.settings.openai_api_key)
             
-            # 调用API（新版本）
-            response = client.chat.completions.create(
+            # 调用API（新版本）- 使用asyncio.to_thread避免阻塞事件循环
+            import asyncio
+            response = await asyncio.to_thread(
+                client.chat.completions.create,
                 model=self.settings.openai_model,
                 messages=[
                     {"role": "system", "content": "你是一个专业的行业分析师，擅长生成简洁的语音播报摘要。"},
@@ -336,20 +338,22 @@ class MinimaxiTTSService:
             logger.debug(f"API URL: {api_url}")
             logger.debug(f"Request payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
             
-            # 调用Minimaxi API
-            response = requests.post(
-                api_url,
-                json=payload,
-                headers=headers,
-                timeout=60
-            )
-            
-            if response.status_code != 200:
-                logger.error(f"Minimaxi API error: {response.status_code} - {response.text}")
-                raise Exception(f"TTS API error: {response.status_code}")
-            
-            # 解析响应数据
-            response_data = response.json()
+            # 调用Minimaxi API (异步)
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    api_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=60)
+                ) as response:
+                    if response.status != 200:
+                        response_text = await response.text()
+                        logger.error(f"Minimaxi API error: {response.status} - {response_text}")
+                        raise Exception(f"TTS API error: {response.status}")
+                    
+                    # 解析响应数据
+                    response_data = await response.json()
             
             # 检查API响应状态
             if response_data.get('base_resp', {}).get('status_code') != 0:

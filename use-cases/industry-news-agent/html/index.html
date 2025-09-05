@@ -23,10 +23,16 @@
             </nav>
             <div class="header-actions">
                 <span id="user-info" class="user-info" style="display: none;">
-                    Welcome, <span id="username" class="username"></span>
+                    <span class="welcome-text">Welcome, <span id="username" class="username"></span></span>
+                    <button id="task-status-btn" class="task-status-btn" onclick="showTaskStatusModal(true)" title="Task Status">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                        </svg>
+                        Tasks
+                    </button>
                     <a href="#" onclick="logout()" class="logout-link">Logout</a>
                 </span>
-                <div id="websocket-status" class="websocket-status">
+                <div id="websocket-status" class="websocket-status" style="display: none;">
                     <span id="ws-indicator" class="ws-indicator">🔌 WebSocket: 连接中...</span>
                 </div>
             </div>
@@ -98,27 +104,7 @@
         </div>
         
         <!-- Loading State -->
-        <div id="loading" class="loading-container">
-            <div class="loading-content">
-                <div class="loading-spinner"></div>
-                <h3>Summoning Industry Voices</h3>
-                <p id="current-step">Initializing PHEMCAST...</p>
-                <div id="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 0%" id="progress-fill"></div>
-                    </div>
-                </div>
-                <div class="process-steps">
-                    <span class="step">🎯 Gathering voices</span>
-                    <span class="step">🧠 Analyzing insights</span>
-                    <span class="step">🎙️ Crafting podcast</span>
-                </div>
-                <div id="process-log" class="log-output"></div>
-            </div>
-        </div>
         
-        <!-- Results -->
-        <div id="result" class="result-container"></div>
         
         <!-- Podcast Library Section -->
         <div class="task-cards-section">
@@ -618,5 +604,20 @@
         
         // 音频播放器函数已移动到 app.js 中
     </script>
+
+    <!-- Task Status Modal -->
+    <div id="taskStatusModal" class="task-status-modal">
+        <div class="task-status-modal-content">
+            <div class="task-status-modal-header">
+                <h2>Task Status</h2>
+                <span class="task-status-close" onclick="closeTaskStatusModal()">&times;</span>
+            </div>
+            <div class="task-status-modal-body">
+                <div id="taskStatusList" class="task-status-list">
+                    <!-- Task items will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

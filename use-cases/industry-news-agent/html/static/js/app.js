@@ -11,7 +11,7 @@ function initializeForm() {
     
     // Set default URL if textarea is empty
     if (!urlsTextarea.value.trim()) {
-        urlsTextarea.value = 'https://blog.openai.com';
+        urlsTextarea.value = 'https://wiz.io/blog';
     }
     
     // Set default max articles to 1
@@ -37,14 +37,7 @@ async function handleSubmit(event) {
     if (email) formData.append('email', email);
     formData.append('max_articles', document.getElementById('max_articles').value);
     
-    const loadingElement = document.getElementById('loading');
-    const resultElement = document.getElementById('result');
     
-    loadingElement.style.display = 'block';
-    resultElement.innerHTML = '';
-    
-    // Show initial progress
-    updateProgress(10, 'Starting report generation...');
     
     try {
         const response = await fetch('/api/generate-report-form', {
@@ -56,55 +49,22 @@ async function handleSubmit(event) {
         
         if (result.task_id) {
             currentTaskId = result.task_id; // Set current task ID for WebSocket monitoring
-            updateProgress(30, 'Task created successfully, monitoring progress via WebSocket...');
-            loadingElement.style.display = 'none';
-            resultElement.innerHTML = `
-                <div class="result success">
-                    <strong>✅ Report Generation Started</strong><br>
-                    Task ID: ${result.task_id}<br>
-                    <small>Processing ${document.getElementById('max_articles').value} article(s) from ${document.getElementById('urls').value.split('\n').filter(url => url.trim()).length} blog(s)</small><br><br>
-                    <div id="status">
-                        <div class="status-item">
-                            <strong>⏳ Status: Created</strong><br>
-                            <small>Task created, waiting for processing to start...</small>
-                        </div>
-                    </div>
-                    <button onclick="checkStatus('${result.task_id}')" class="status-button">
-                        Manual Check Status
-                    </button>
-                    <small style="color: #666; display: block; margin-top: 10px;">
-                        💡 Status updates automatically via WebSocket. Use manual check as backup.
-                    </small>
-                </div>
-            `;
+            
+            // 显示任务提交成功提示
+            alert('Task submitted successfully! You can check the task status by clicking the "Tasks" button.');
+            
+            console.log('Task started successfully:', result.task_id);
         } else {
             throw new Error('No task ID returned');
         }
     } catch (error) {
-        updateProgress(0, 'Error occurred');
-        loadingElement.style.display = 'none';
-        resultElement.innerHTML = `
-            <div class="result error">
-                <strong>❌ Error:</strong> ${error.message || 'Unknown error occurred'}
-            </div>
-        `;
+        console.error('Task submission failed:', error);
+        alert(`Task submission failed: ${error.message || 'Unknown error occurred'}`);
     } finally {
         isSubmitting = false; // Reset flag regardless of success or error
     }
 }
 
-function updateProgress(percentage, message) {
-    const progressFill = document.getElementById('progress-fill');
-    const currentStep = document.getElementById('current-step');
-    
-    if (progressFill) {
-        progressFill.style.width = percentage + '%';
-    }
-    
-    if (currentStep) {
-        currentStep.textContent = message;
-    }
-}
 
 async function checkStatus(taskId) {
     try {
@@ -321,35 +281,10 @@ function handleWebSocketMessage(message) {
 }
 
 function updateTaskStatusFromWebSocket(message) {
-    const statusDiv = document.getElementById('status');
-    if (!statusDiv) return;
+    // 不再在页面上显示状态信息，所有状态都转到task列表弹窗中
     
     if (message.status === 'completed') {
-        statusDiv.innerHTML = `
-            <div class="status-item">
-                <strong>✅ Completed!</strong><br>
-                Analyzed: ${message.data?.total_articles || 0} articles<br>
-                ${message.data?.report_paths ? Object.keys(message.data.report_paths).map(k => {
-                    if (k === 'audio' && message.data.report_paths[k]) {
-                        return `
-                            <div style="margin: 10px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
-                                <strong>🎧 Audio Report Available</strong><br>
-                                <small style="color: #666;">
-                                    <a href="/download/${currentTaskId}/audio" target="_blank" style="color: #007bff;">Direct Link</a>
-                                </small>
-                            </div>
-                        `;
-                    } else if (k !== 'audio') {
-                        return `
-                            <a href="/download/${currentTaskId}/${k}" 
-                               target="_blank" class="download-link">Download ${k.toUpperCase()} Report</a><br>
-                        `;
-                    }
-                    return '';
-                }).join('') : ''}
-                ${message.data?.email_sent ? '<br>📧 Sent to email' : ''}
-            </div>
-        `;
+        console.log('Task completed:', message);
         
         // Add podcast card for the completed summoning (replaces old audio-container)
         console.log('WebSocket audio data:', message.data?.report_paths?.audio);
@@ -373,32 +308,19 @@ function updateTaskStatusFromWebSocket(message) {
             console.log('WebSocket: No audio data or audio generation failed');
         }
         
-        // Hide loading indicator
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) {
-            loadingElement.style.display = 'none';
-        }
         
     } else if (message.status === 'error') {
-        statusDiv.innerHTML = `
-            <div class="status-item error-text">
-                <strong>Error:</strong> ${message.error || 'Processing failed'}
-            </div>
-        `;
+        console.log('Task error:', message);
         
-        // Hide loading indicator
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) {
-            loadingElement.style.display = 'none';
-        }
         
     } else if (message.status === 'processing') {
-        statusDiv.innerHTML = `
-            <div class="status-item">
-                <strong>⏳ Status: Processing</strong><br>
-                <small>Task is currently being processed...</small>
-            </div>
-        `;
+        console.log('Task processing:', message);
+    }
+    
+    // 刷新task列表弹窗（如果当前打开的话）
+    const modal = document.getElementById('taskStatusModal');
+    if (modal && modal.style.display === 'block' && typeof loadTaskStatusList === 'function') {
+        loadTaskStatusList();
     }
 }
 
@@ -462,11 +384,6 @@ function createTaskCard(taskData) {
             <button class="task-card-btn secondary-btn" onclick="skipForward('${taskData.task_id}')" title="Skip Forward">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M13 6v12l8.5-6L13 6zM4 18l8.5-6L4 6v12z"/>
-                </svg>
-            </button>
-            <button class="task-card-btn download-btn" onclick="downloadTaskAudio('${taskData.task_id}')" title="Download">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
                 </svg>
             </button>
         </div>
@@ -621,17 +538,6 @@ function skipForward(taskId) {
     }
 }
 
-function downloadTaskAudio(taskId) {
-    const audio = document.getElementById(`audio-${taskId}`);
-    if (audio && audio.src) {
-        const link = document.createElement('a');
-        link.href = audio.src;
-        link.download = `phemcast_${taskId}.mp3`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-}
 
 // Initialize form when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -762,3 +668,169 @@ function tryAlternativeConnection(wsUrl) {
         console.error('Failed to create alternative WebSocket:', wsUrl, error);
     }
 }
+
+// Task Status Modal Functions
+function showTaskStatusModal(loadData = false) {
+    const modal = document.getElementById('taskStatusModal');
+    modal.style.display = 'block';
+    // 只有在明确要求时才加载数据
+    if (loadData && typeof loadTaskStatusList === 'function') {
+        loadTaskStatusList();
+    }
+}
+
+function closeTaskStatusModal() {
+    const modal = document.getElementById('taskStatusModal');
+    modal.style.display = 'none';
+}
+
+async function loadTaskStatusList() {
+    const taskStatusList = document.getElementById('taskStatusList');
+    
+    try {
+        console.log('Loading task status list...');
+        // Fetch recent tasks from the new task status API
+        const response = await fetch('/api/task-status-list');
+        console.log('Task status list response:', response);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const tasks = data.tasks || [];
+        
+        // Clear existing content
+        taskStatusList.innerHTML = '';
+        
+        if (tasks.length === 0) {
+            // Show empty state
+            taskStatusList.innerHTML = `
+                <div class="task-status-empty">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    <h3>No Tasks Found</h3>
+                    <p>No completed tasks available at the moment.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Create task items
+        tasks.forEach(task => {
+            const taskItem = createTaskStatusItem(task);
+            taskStatusList.appendChild(taskItem);
+        });
+        
+    } catch (error) {
+        console.error('Failed to load task status list:', error);
+        taskStatusList.innerHTML = `
+            <div class="task-status-empty">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <h3>Error Loading Tasks</h3>
+                <p>Failed to load task status. Please try again.</p>
+            </div>
+        `;
+    }
+}
+
+function createTaskStatusItem(task) {
+    const item = document.createElement('div');
+    item.className = 'task-status-item';
+    
+    // Determine status badge
+    const statusBadge = getStatusBadge(task.status || 'success');
+    
+    // Determine task type tag
+    const typeTag = getTaskTypeTag(task.execution_type || 'manual');
+    
+    // Format creation date
+    const createdDate = new Date(task.created_at);
+    const timeAgo = getTimeAgo(createdDate);
+    
+    item.innerHTML = `
+        <div class="task-status-content">
+            <div class="task-status-info">
+                <div class="task-status-name">${task.task_name || 'Industry Intelligence Task'}</div>
+                <div class="task-status-meta">
+                    <span class="task-status-tag ${typeTag.class}">
+                        ${typeTag.icon ? `<svg viewBox="0 0 24 24" fill="currentColor">${typeTag.icon}</svg>` : ''}
+                        ${typeTag.text}
+                    </span>
+                    <div class="task-status-time">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"/>
+                        </svg>
+                        ${timeAgo}
+                    </div>
+                </div>
+            </div>
+            <div class="task-status-badge ${statusBadge.class}">${statusBadge.text}</div>
+        </div>
+    `;
+    
+    return item;
+}
+
+function getStatusBadge(status) {
+    const statusMap = {
+        'success': { class: 'success', text: 'Completed' },
+        'completed': { class: 'success', text: 'Completed' },
+        'error': { class: 'error', text: 'Failed' },
+        'processing': { class: 'processing', text: 'Processing' },
+        'pending': { class: 'pending', text: 'Pending' }
+    };
+    
+    return statusMap[status] || { class: 'pending', text: 'Unknown' };
+}
+
+function getTaskTypeTag(executionType) {
+    const typeMap = {
+        'manual': { 
+            class: 'manual', 
+            text: 'Manual',
+            icon: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'
+        },
+        'scheduled': { 
+            class: 'scheduled', 
+            text: 'Scheduled',
+            icon: '<path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>'
+        }
+    };
+    
+    return typeMap[executionType] || { 
+        class: 'manual', 
+        text: 'Manual',
+        icon: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'
+    };
+}
+
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) {
+        return 'Just now';
+    } else if (diffInSeconds < 3600) {
+        const minutes = Math.floor(diffInSeconds / 60);
+        return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 86400) {
+        const hours = Math.floor(diffInSeconds / 3600);
+        return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 2592000) {
+        const days = Math.floor(diffInSeconds / 86400);
+        return `${days} day${days > 1 ? 's' : ''} ago`;
+    } else {
+        return date.toLocaleDateString();
+    }
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('taskStatusModal');
+    if (event.target === modal) {
+        closeTaskStatusModal();
+    }
+});

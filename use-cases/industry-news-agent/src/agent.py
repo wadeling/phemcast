@@ -97,7 +97,20 @@ class IndustryNewsAgent:
             
             # Run the workflow without checkpointing for background processing
             config = {"configurable": {"thread_id": f"background_{datetime.now().timestamp()}"}}
-            final_state = await self.graph.ainvoke(initial_state, config=config)
+            # Use asyncio.to_thread to avoid blocking the event loop
+            import asyncio
+            
+            # Create a wrapper function that runs the async workflow in a thread
+            def run_workflow_sync():
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    return loop.run_until_complete(self.graph.ainvoke(initial_state, config=config))
+                finally:
+                    loop.close()
+            
+            final_state = await asyncio.to_thread(run_workflow_sync)
             
             # 获取报告路径，包括音频
             report_paths = {}

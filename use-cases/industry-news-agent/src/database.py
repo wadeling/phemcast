@@ -33,7 +33,14 @@ class DatabaseManager:
         else:
             async_url = database_url.replace('mysql+pymysql://', 'mysql+aiomysql://')
             
-        self.async_engine = create_async_engine(async_url)
+        self.async_engine = create_async_engine(
+            async_url,
+            pool_size=20,          # 连接池大小
+            max_overflow=30,       # 最大溢出连接数
+            pool_timeout=30,       # 获取连接超时时间
+            pool_recycle=3600,     # 连接回收时间（1小时）
+            pool_pre_ping=True     # 连接前ping检查
+        )
         
         # Create tables
         # Import all models to ensure they're registered with Base
