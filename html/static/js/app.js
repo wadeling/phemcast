@@ -51,7 +51,7 @@ async function handleSubmit(event) {
             currentTaskId = result.task_id; // Set current task ID for WebSocket monitoring
             
             // 显示任务提交成功提示
-            alert('Task submitted successfully! You can check the task status by clicking the "Tasks" button.');
+            showAlertModal('Success', 'Task submitted successfully! You can check the task status by clicking the "Tasks" button.');
             
             console.log('Task started successfully:', result.task_id);
         } else {
@@ -59,7 +59,7 @@ async function handleSubmit(event) {
         }
     } catch (error) {
         console.error('Task submission failed:', error);
-        alert(`Task submission failed: ${error.message || 'Unknown error occurred'}`);
+        showAlertModal('Error', `Task submission failed: ${error.message || 'Unknown error occurred'}`);
     } finally {
         isSubmitting = false; // Reset flag regardless of success or error
     }
@@ -539,11 +539,78 @@ function skipForward(taskId) {
 }
 
 
+// Utility Functions
+function formatDate(date) {
+    return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Enhanced form validation
+function validateForm() {
+    const urls = document.getElementById('urls').value.trim();
+    const email = document.getElementById('email').value.trim();
+    
+    if (!urls) {
+        showAlertModal('Validation Error', 'Please enter at least one URL.');
+        return false;
+    }
+    
+    // Basic URL validation
+    const urlList = urls.split('\n').filter(url => url.trim());
+    const invalidUrls = urlList.filter(url => {
+        try {
+            new URL(url.trim());
+            return false;
+        } catch {
+            return true;
+        }
+    });
+    
+    if (invalidUrls.length > 0) {
+        showAlertModal('Validation Error', `Invalid URLs detected: ${invalidUrls.join(', ')}`);
+        return false;
+    }
+    
+    if (email && !isValidEmail(email)) {
+        showAlertModal('Validation Error', 'Please enter a valid email address.');
+        return false;
+    }
+    
+    return true;
+}
+
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
 // Initialize form when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('reportForm');
     if (form) {
-        form.addEventListener('submit', handleSubmit);
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (validateForm()) {
+                handleSubmit(e);
+            }
+        });
         initializeForm();
     }
     
@@ -552,6 +619,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load existing task cards (if any)
     loadExistingTaskCards();
+    
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Escape key closes modals
+        if (e.key === 'Escape') {
+            closeAlertModal();
+            closeConfirmModal();
+            closeLoadingModal();
+            closeTaskStatusModal();
+        }
+    });
 });
 
 async function loadExistingTaskCards() {
@@ -833,4 +911,59 @@ window.addEventListener('click', function(event) {
     if (event.target === modal) {
         closeTaskStatusModal();
     }
+});
+
+// Modal Functions
+let confirmCallback = null;
+
+function showAlertModal(title, message) {
+    document.getElementById('alertTitle').textContent = title;
+    document.getElementById('alertMessage').textContent = message;
+    document.getElementById('alertModal').style.display = 'block';
+}
+
+function closeAlertModal() {
+    document.getElementById('alertModal').style.display = 'none';
+}
+
+function showConfirmModal(title, message, callback) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    confirmCallback = callback;
+    document.getElementById('confirmModal').style.display = 'block';
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+    confirmCallback = null;
+}
+
+function confirmAction() {
+    if (confirmCallback) {
+        confirmCallback();
+    }
+    closeConfirmModal();
+}
+
+function showLoadingModal(title, message) {
+    document.getElementById('loadingTitle').textContent = title;
+    document.getElementById('loadingMessage').textContent = message;
+    document.getElementById('loadingModal').style.display = 'block';
+}
+
+function closeLoadingModal() {
+    document.getElementById('loadingModal').style.display = 'none';
+}
+
+// Close modals when clicking outside
+window.addEventListener('click', function(event) {
+    const modals = ['alertModal', 'confirmModal', 'loadingModal'];
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (event.target === modal) {
+            if (modalId === 'alertModal') closeAlertModal();
+            if (modalId === 'confirmModal') closeConfirmModal();
+            if (modalId === 'loadingModal') closeLoadingModal();
+        }
+    });
 });

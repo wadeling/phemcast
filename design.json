@@ -1,0 +1,121 @@
+{
+  "designSystem": {
+    "name": "Vocality Design System",
+    "description": "Based on the Vocality homepage screenshot, this system captures the visual elements for consistent replication.",
+    "colors": {
+      "brand": {
+        "primary": "#000000",
+        "secondary": "#FF6600"
+      },
+      "neutral": {
+        "white": "#FFFFFF",
+        "black": "#000000",
+        "gray": "#666666"
+      },
+      "accents": {
+        "blue": "#007BFF",
+        "green": "#28A745",
+        "red": "#DC3545",
+        "yellow": "#FFC107"
+      }
+    },
+    "typography": {
+      "fontFamily": {
+        "primary": "'Helvetica Neue', Arial, sans-serif"
+      },
+      "sizes": {
+        "h1": {
+          "fontSize": "48px",
+          "fontWeight": "700",
+          "lineHeight": "1.2"
+        },
+        "h2": {
+          "fontSize": "36px",
+          "fontWeight": "600",
+          "lineHeight": "1.3"
+        },
+        "body": {
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "lineHeight": "1.5"
+        },
+        "button": {
+          "fontSize": "16px",
+          "fontWeight": "600",
+          "lineHeight": "1.5"
+        },
+        "nav": {
+          "fontSize": "14px",
+          "fontWeight": "500",
+          "lineHeight": "1.4"
+        }
+      }
+    },
+    "spacing": {
+      "baseUnit": "8px",
+      "scale": {
+        "xxs": "4px",
+        "xs": "8px",
+        "sm": "16px",
+        "md": "24px",
+        "lg": "32px",
+        "xl": "48px",
+        "xxl": "64px"
+      }
+    },
+    "components": {
+      "button": {
+        "primary": {
+          "backgroundColor": "#FF6600",
+          "color": "#FFFFFF",
+          "padding": "12px 24px",
+          "borderRadius": "4px",
+          "fontSize": "16px",
+          "fontWeight": "600"
+        },
+        "secondary": {
+          "backgroundColor": "transparent",
+          "color": "#000000",
+          "padding": "12px 24px",
+          "border": "1px solid #000000",
+          "borderRadius": "4px",
+          "fontSize": "16px",
+          "fontWeight": "600"
+        }
+      },
+      "navbar": {
+        "backgroundColor": "transparent",
+        "color": "#000000",
+        "padding": "16px 0",
+        "height": "60px",
+        "itemSpacing": "24px"
+      },
+      "card": {
+        "backgroundColor": "#FFFFFF",
+        "borderRadius": "8px",
+        "boxShadow": "0 2px 4px rgba(0,0,0,0.1)",
+        "padding": "16px",
+        "minWidth": "200px",
+        "minHeight": "200px"
+      },
+      "progressBar": {
+        "backgroundColor": "#E0E0E0",
+        "progressColor": "#FF6600",
+        "height": "4px",
+        "borderRadius": "2px"
+      }
+    },
+    "layout": {
+      "grid": {
+        "columns": "12",
+        "gutter": "24px",
+        "containerMaxWidth": "1200px"
+      },
+      "alignment": {
+        "text": "center",
+        "buttons": "center"
+      },
+      "symmetry": "balanced"
+    }
+  }
+}

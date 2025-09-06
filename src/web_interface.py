@@ -553,30 +553,25 @@ async def get_recent_tasks():
 @app.get("/api/task-status-list")
 async def get_task_status_list():
     """Get the 5 most recent tasks with smart status handling (prefer completed over processing)."""
-    tid=uuid.uuid4()
-    logger.info(f"task-status-list {tid} API called")
     try:
         # Add timeout to prevent long blocking
         import asyncio
-        return await asyncio.wait_for(_get_task_status_list_impl(tid), timeout=30.0)
+        return await asyncio.wait_for(_get_task_status_list_impl(), timeout=30.0)
     except asyncio.TimeoutError:
-        logger.error(f"task-status-list {tid} timed out after 30 seconds")
+        logger.error(f"task-status-list timed out after 30 seconds")
         raise HTTPException(status_code=504, detail="Request timeout")
     except Exception as e:
-        logger.error(f"task-status-list {tid} failed: {e}")
+        logger.error(f"task-status-list failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve task status list: {str(e)}")
 
 
-async def _get_task_status_list_impl(tid):
+async def _get_task_status_list_impl():
     """Implementation of task status list retrieval."""
     try:
         from sqlalchemy import text
         
-        logger.info(f"task-status-list {tid} getting database connection...")
         db = await get_async_db()
-        logger.info(f"task-status-list {tid} got database connection, creating session...")
         async with db as session:
-            logger.info(f"task-status-list {tid} session created, executing query...")
             # First, get the 5 most recent task_ids (regardless of status)
             recent_task_ids_result = await session.execute(
                 text("""
@@ -589,7 +584,6 @@ async def _get_task_status_list_impl(tid):
             )
             recent_task_ids = [row.task_id for row in recent_task_ids_result.fetchall()]
             
-            logger.info(f"task-status-list {tid} ids: {recent_task_ids}")
             if not recent_task_ids:
                 return {"tasks": []}
             
@@ -611,7 +605,6 @@ async def _get_task_status_list_impl(tid):
                     {"task_id": task_id}
                 )
                 rows = result.fetchall()
-                logger.info(f"task-status-list {tid} task_id: {task_id} rows: {rows}")
                 
                 if not rows:
                     continue
@@ -620,10 +613,14 @@ async def _get_task_status_list_impl(tid):
                 selected_row = None
                 has_completed = any(row.status == 'completed' for row in rows)
                 has_processing = any(row.status == 'processing' for row in rows)
+                has_error = any(row.status == 'error' for row in rows)
                 
                 if has_completed:
                     # If there's a completed record, use the latest completed one
                     selected_row = next((row for row in rows if row.status == 'completed'), None)
+                elif has_error:
+                    # If there's only error records, use the latest error one
+                    selected_row = next((row for row in rows if row.status == 'error'), None)
                 elif has_processing:
                     # If there's only processing records, use the latest processing one
                     selected_row = next((row for row in rows if row.status == 'processing'), None)
@@ -642,7 +639,6 @@ async def _get_task_status_list_impl(tid):
                     except json.JSONDecodeError:
                         report_paths = {}
                 
-                logger.debug(f"task-status-list {tid} task_id: {selected_row.task_id} status: {selected_row.status}, report_paths: {report_paths}")
                 
                 # Create task data in the format expected by frontend
                 task_data = {
@@ -659,14 +655,13 @@ async def _get_task_status_list_impl(tid):
                     "report_paths": report_paths
                 }
                 
-                logger.debug(f"task-status-list {tid} task_id: {selected_row.task_id} final status: {task_data['status']}, audio_url: {task_data['audio_url']}")
                 tasks.append(task_data)
             
-            logger.info(f"task-status-list {tid} retrieved {len(tasks)} recent tasks with smart status handling")
+            logger.info(f"task-status-list retrieved {len(tasks)} recent tasks with smart status handling")
             return {"tasks": tasks}
             
     except Exception as e:
-        logger.error(f"task-status-list {tid} failed: {e}")
+        logger.error(f"task-status-list failed: {e}")
         raise
 
 

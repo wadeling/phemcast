@@ -1,4 +1,4 @@
-/* Industry News Agent - Modern Design */
+/* Vocality Design System - PHEMCAST */
 
 /* Reset and Base Styles */
 * {
@@ -8,17 +8,16 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    line-height: 1.6;
-    color: #1a1a1a;
-    background: #fafafa;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.5;
+    color: #000000;
+    background: #FFFFFF;
     overflow-x: hidden;
 }
 
 /* Header Styles */
 .header {
-    background: #ffffff;
-    border-bottom: 1px solid #e5e5e5;
+    background: transparent;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -32,7 +31,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 72px;
+    height: 60px;
 }
 
 .logo {
@@ -44,7 +43,7 @@ body {
 .logo-icon {
     width: 40px;
     height: 40px;
-    background: #1a1a1a;
+    background: #000000;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -56,23 +55,24 @@ body {
 .logo-text {
     font-size: 20px;
     font-weight: 600;
-    color: #1a1a1a;
+    color: #000000;
 }
 
 .nav {
     display: flex;
-    gap: 32px;
+    gap: 24px;
 }
 
 .nav-link {
-    color: #666666;
+    color: #000000;
     text-decoration: none;
     font-weight: 500;
+    font-size: 14px;
     transition: color 0.2s ease;
 }
 
 .nav-link:hover {
-    color: #1a1a1a;
+    color: #FF6600;
 }
 
 .header-actions {
@@ -138,21 +138,20 @@ body {
 
 .hero-badge {
     display: inline-block;
-    background: #f5f5f5;
-    color: #666666;
+    background: #FF6600;
+    color: #FFFFFF;
     padding: 8px 16px;
-    border-radius: 20px;
+    border-radius: 4px;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     margin-bottom: 24px;
-    border: 1px solid #e5e5e5;
 }
 
 .hero-title {
     font-size: 48px;
     font-weight: 700;
     line-height: 1.2;
-    color: #1a1a1a;
+    color: #000000;
     margin-bottom: 24px;
     max-width: 800px;
     margin-left: auto;
@@ -160,7 +159,7 @@ body {
 }
 
 .hero-subtitle {
-    font-size: 20px;
+    font-size: 16px;
     color: #666666;
     max-width: 600px;
     margin: 0 auto 40px;
@@ -244,11 +243,13 @@ body {
 /* Form Container */
 .form-container {
     background: #ffffff;
-    border: 1px solid #e5e5e5;
-    border-radius: 20px;
-    padding: 40px;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 16px;
     margin-bottom: 60px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-width: 200px;
+    min-height: 200px;
 }
 
 .form-header {
@@ -299,9 +300,9 @@ body {
 .form-group input,
 .form-group select,
 .form-group textarea {
-    padding: 16px;
-    border: 2px solid #e5e5e5;
-    border-radius: 12px;
+    padding: 12px 16px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
     font-size: 16px;
     font-family: inherit;
     transition: all 0.2s ease;
@@ -312,8 +313,8 @@ body {
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #ff6b35;
-    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+    border-color: #FF6600;
+    box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.1);
 }
 
 .form-group textarea {
@@ -337,14 +338,14 @@ body {
     flex-wrap: wrap;
 }
 
-/* CTA Button */
+/* CTA Button - Updated to match design system */
 .cta-button {
     display: inline-flex;
     align-items: center;
     gap: 12px;
     border: none;
-    padding: 18px 32px;
-    border-radius: 12px;
+    padding: 12px 24px;
+    border-radius: 4px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
@@ -352,29 +353,29 @@ body {
     min-width: 200px;
     justify-content: center;
     text-decoration: none;
+    line-height: 1.5;
 }
 
 .cta-button.primary {
-    background: #ff6b35;
-    color: #ffffff;
+    background: #FF6600;
+    color: #FFFFFF;
 }
 
 .cta-button.primary:hover {
-    background: #e55a2b;
+    background: #E55A00;
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.3);
+    box-shadow: 0 8px 25px rgba(255, 102, 0, 0.3);
 }
 
 .cta-button.secondary {
-    background: #ffffff;
-    color: #1a1a1a;
-    border: 2px solid #e5e5e5;
+    background: transparent;
+    color: #000000;
+    border: 1px solid #000000;
 }
 
 .cta-button.secondary:hover {
-    background: #f5f5f5;
-    border-color: #ff6b35;
-    color: #ff6b35;
+    background: #000000;
+    color: #FFFFFF;
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
@@ -432,18 +433,18 @@ body {
 
 .progress-bar {
     width: 100%;
-    height: 8px;
-    background: #f5f5f5;
-    border-radius: 4px;
+    height: 4px;
+    background: #E0E0E0;
+    border-radius: 2px;
     overflow: hidden;
     margin-bottom: 24px;
 }
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #ff6b35, #f7931e);
+    background: #FF6600;
     transition: width 0.3s ease;
-    border-radius: 4px;
+    border-radius: 2px;
 }
 
 .process-steps {
@@ -597,15 +598,16 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 20px;
+    padding: 12px 24px;
     border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 100px;
     justify-content: center;
+    line-height: 1.5;
 }
 
 .play-btn {
@@ -636,12 +638,12 @@ body {
 }
 
 .download-btn {
-    background: #6b7280;
+    background: #FF6600;
     color: #ffffff;
 }
 
 .download-btn:hover {
-    background: #4b5563;
+    background: #E55A00;
 }
 
 /* Task Cards Section */
@@ -685,35 +687,25 @@ body {
 }
 
 .task-cards-container::-webkit-scrollbar-thumb {
-    background: #ff6b35;
+    background: #FF6600;
     border-radius: 4px;
 }
 
 .task-card {
     flex: 0 0 320px;
     background: #ffffff;
-    border: 1px solid #e5e5e5;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
     position: relative;
-    transform: rotate(-2deg);
-    margin-top: 20px;
-}
-
-.task-card:nth-child(even) {
-    transform: rotate(1deg);
-    margin-top: 0;
-}
-
-.task-card:nth-child(3n) {
-    transform: rotate(-1deg);
-    margin-top: 10px;
+    min-width: 200px;
+    min-height: 200px;
 }
 
 .task-card:hover {
-    transform: rotate(0deg) translateY(-8px);
+    transform: translateY(-8px);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
     z-index: 10;
 }
@@ -784,7 +776,7 @@ body {
 
 .task-card-progress-fill {
     height: 100%;
-    background: #ff6b35;
+    background: #FF6600;
     border-radius: 2px;
     transition: width 0.3s ease;
     width: 0%;
@@ -816,10 +808,11 @@ body {
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 14px;
+    font-weight: 600;
 }
 
 .task-card-btn.play-btn {
-    background: #1a1a1a;
+    background: #000000;
     color: #ffffff;
     width: 48px;
     height: 48px;
@@ -831,23 +824,23 @@ body {
 }
 
 .task-card-btn.secondary-btn {
-    background: #f5f5f5;
-    color: #666666;
-    border: 1px solid #e5e5e5;
+    background: transparent;
+    color: #000000;
+    border: 1px solid #000000;
 }
 
 .task-card-btn.secondary-btn:hover {
-    background: #e5e5e5;
-    color: #1a1a1a;
+    background: #000000;
+    color: #ffffff;
 }
 
 .task-card-btn.download-btn {
-    background: #ff6b35;
+    background: #FF6600;
     color: #ffffff;
 }
 
 .task-card-btn.download-btn:hover {
-    background: #e55a2b;
+    background: #E55A00;
     transform: scale(1.05);
 }
 
@@ -888,17 +881,20 @@ body {
 
 .feature-card {
     background: #ffffff;
-    border: 1px solid #e5e5e5;
-    border-radius: 16px;
-    padding: 32px 24px;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 16px;
     text-align: center;
     transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-width: 200px;
+    min-height: 200px;
 }
 
 .feature-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-    border-color: #ff6b35;
+    border-color: #FF6600;
 }
 
 .feature-icon {
@@ -979,19 +975,19 @@ body {
     background-color: #ffffff;
     margin: 5% auto;
     padding: 0;
-    border-radius: 20px;
+    border-radius: 8px;
     width: 90%;
     max-width: 800px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .modal-header {
-    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    background: #FF6600;
     color: #ffffff;
-    padding: 32px;
-    border-radius: 20px 20px 0 0;
+    padding: 16px;
+    border-radius: 8px 8px 0 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1038,8 +1034,8 @@ body {
 .modal-body textarea {
     width: 100%;
     padding: 12px 16px;
-    border: 2px solid #e5e5e5;
-    border-radius: 8px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
     font-size: 14px;
     font-family: inherit;
     transition: border-color 0.2s ease;
@@ -1049,23 +1045,24 @@ body {
 .modal-body select:focus,
 .modal-body textarea:focus {
     outline: none;
-    border-color: #ff6b35;
+    border-color: #FF6600;
 }
 
 .modal-body .btn {
-    background: #ff6b35;
+    background: #FF6600;
     color: #ffffff;
     border: none;
     padding: 12px 24px;
-    border-radius: 8px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 600;
     transition: background 0.2s ease;
+    line-height: 1.5;
 }
 
 .modal-body .btn:hover {
-    background: #e55a2b;
+    background: #E55A00;
 }
 
 .task-list {
@@ -1103,17 +1100,18 @@ body {
 
 .task-item button {
     margin-right: 12px;
-    padding: 8px 16px;
+    padding: 12px 24px;
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 600;
     transition: all 0.2s ease;
+    line-height: 1.5;
 }
 
 .task-item button:first-of-type {
-    background: #22c55e;
+    background: #FF6600;
     color: #ffffff;
 }
 
@@ -1255,26 +1253,26 @@ body {
     }
 }
 
-/* Task Status Button Styles */
+/* Task Status Button Styles - Updated to match design system */
 .task-status-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 16px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    color: #495057;
-    font-size: 14px;
-    font-weight: 500;
+    padding: 12px 24px;
+    background: transparent;
+    border: 1px solid #000000;
+    border-radius: 4px;
+    color: #000000;
+    font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
+    line-height: 1.5;
 }
 
 .task-status-btn:hover {
-    background: #e9ecef;
-    border-color: #dee2e6;
-    color: #212529;
+    background: #000000;
+    color: #ffffff;
 }
 
 .task-status-btn svg {

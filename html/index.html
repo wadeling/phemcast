@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PHEMCAST - AI-Powered Industry Podcast Generator</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Helvetica+Neue:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Header -->
@@ -60,7 +60,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="urls">Enterprise Voice Sources</label>
-                        <textarea id="urls" name="urls" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required>https://blog.openai.com</textarea>
+                        <textarea id="urls" name="urls" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required>https://wiz.io/blog</textarea>
                         <small class="form-hint">🎯 PHEMCAST will gather public voices from these enterprise blogs</small>
                     </div>
                 </div>
@@ -616,6 +616,50 @@
                 <div id="taskStatusList" class="task-status-list">
                     <!-- Task items will be populated here -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 id="alertTitle">Alert</h2>
+                <span class="close" onclick="closeAlertModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="alertMessage">This is an alert message.</p>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="btn" onclick="closeAlertModal()">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirm Action</h2>
+                <span class="close" onclick="closeConfirmModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">Are you sure you want to perform this action?</p>
+                <div style="text-align: center; margin-top: 20px; display: flex; gap: 12px; justify-content: center;">
+                    <button class="btn" onclick="confirmAction()" style="background: #FF6600;">Confirm</button>
+                    <button class="btn" onclick="closeConfirmModal()" style="background: #666666;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 300px; text-align: center;">
+            <div class="modal-body">
+                <div class="loading-spinner" style="margin: 0 auto 16px;"></div>
+                <h3 id="loadingTitle">Processing...</h3>
+                <p id="loadingMessage">Please wait while we process your request.</p>
             </div>
         </div>
     </div>

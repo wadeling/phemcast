@@ -9,7 +9,7 @@ function initializeForm() {
     
     // Set default URL if textarea is empty
     if (!urlsTextarea.value.trim()) {
-        urlsTextarea.value = 'https://blog.openai.com';
+        urlsTextarea.value = 'https://wiz.io/blog';
     }
     
     // Set default max articles to 1
