@@ -1,4 +1,5 @@
 """LangGraph agent for industry news aggregation and analysis."""
+import os
 import asyncio
 import logging
 from typing import List, Dict, Optional, Any
@@ -57,6 +58,7 @@ class IndustryNewsAgent:
     
     async def run_workflow(
         self, 
+        task_id: str,
         urls: List[str], 
         email_recipients: List[str] = None, 
         max_articles: int = 5
@@ -81,6 +83,7 @@ class IndustryNewsAgent:
         
         try:
             initial_state = {
+                "task_id": task_id,
                 "urls": urls,
                 "email_recipients": email_recipients or [],
                 "max_articles": max_articles,
@@ -402,6 +405,7 @@ class IndustryNewsAgent:
     
     async def _send_emails(self, state: AgentState) -> AgentState:
         """Send reports via email."""
+        task_id = state.get("task_id", "")
         report_path_md = state.get("report_path_md", "")
         report_path_pdf = state.get("report_path_pdf", "")
         report_path_audio = state.get("report_path_audio", "")
@@ -455,7 +459,9 @@ class IndustryNewsAgent:
             report_metadata = {
                 "total_articles": len(articles),
                 "companies": list(company_insights.keys()),
-                "execution_date": datetime.now()
+                "execution_date": datetime.now(),
+                # 优化 SERVER_URL 结尾斜杠处理，确保不会出现重复或缺失斜杠
+                "audio_url": (os.getenv("SERVER_URL", "").rstrip("/") + "/download/" + task_id + "/audio") if os.getenv("SERVER_URL") else ""
             }
             
             logger.info(f"Email metadata: {report_metadata}")

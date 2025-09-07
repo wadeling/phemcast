@@ -797,7 +797,7 @@ async def _process_report_task(
         
         # Create and run agent
         agent = create_agent()
-        result = await agent.run_workflow(urls, [email] if email else None, max_articles)
+        result = await agent.run_workflow(task_id,urls, [email] if email else None, max_articles)
         
         # Calculate completion time and duration
         completed_at = datetime.utcnow()

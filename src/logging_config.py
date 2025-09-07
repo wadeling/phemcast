@@ -82,6 +82,10 @@ def setup_logging(
     logging.getLogger('fastapi').setLevel(logging.WARNING)
     logging.getLogger('httpx').setLevel(logging.WARNING)
     
+    # Set Tencent Cloud SDK loggers to WARNING level to reduce noise
+    logging.getLogger('tencentcloud_sdk_common').setLevel(logging.WARNING)
+    logging.getLogger('tencentcloud').setLevel(logging.WARNING)
+    
     # Log the configuration
     logger = logging.getLogger(__name__)
     logger.info(f"Logging configured - Level: {log_level}, File: {log_file or 'Console only'}")
@@ -126,3 +130,30 @@ def disable_debug_logging() -> None:
     """Disable debug logging, set to INFO level."""
     logging.getLogger().setLevel(logging.INFO)
     logging.info("Debug logging disabled, set to INFO level")
+
+
+def set_tencent_sdk_log_level(level: str = "WARNING") -> None:
+    """
+    Set log level specifically for Tencent Cloud SDK loggers.
+    
+    Args:
+        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    """
+    numeric_level = getattr(logging, level.upper(), logging.WARNING)
+    
+    # Set Tencent Cloud SDK loggers
+    logging.getLogger('tencentcloud_sdk_common').setLevel(numeric_level)
+    logging.getLogger('tencentcloud').setLevel(numeric_level)
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"Tencent Cloud SDK log level set to {level}")
+
+
+def enable_tencent_sdk_debug() -> None:
+    """Enable debug logging for Tencent Cloud SDK."""
+    set_tencent_sdk_log_level("DEBUG")
+
+
+def disable_tencent_sdk_debug() -> None:
+    """Disable debug logging for Tencent Cloud SDK, set to WARNING."""
+    set_tencent_sdk_log_level("WARNING")

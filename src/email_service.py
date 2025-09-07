@@ -16,7 +16,7 @@ from datetime import datetime
 from jinja2 import Environment, BaseLoader
 
 from settings import Settings
-from logging_config import get_logger
+from logging_config import get_logger, disable_tencent_sdk_debug
 
 
 logger = get_logger(__name__)
@@ -61,6 +61,9 @@ class TencentCloudEmailService:
             self._client = ses_client.SesClient(cred, region, client_profile)
             self._initialized = True
             
+            # Disable Tencent Cloud SDK debug logging to reduce noise
+            disable_tencent_sdk_debug()
+            
             logger.info("Tencent Cloud SES client initialized successfully")
             
         except ImportError:
@@ -74,7 +77,7 @@ class TencentCloudEmailService:
         self, 
         recipient_email: str, 
         report_paths: Dict[str, str], 
-        report_metadata: Optional[Dict] = None
+        report_metadata: Optional[Dict] = None,
     ) -> bool:
         """
         Send report via Tencent Cloud SES.
@@ -126,10 +129,16 @@ class TencentCloudEmailService:
                 "Destination": [recipient],
                 "Subject": subject
             }
+
+            import base64
+            html_content_b64 = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
+            text_content_b64 = base64.b64encode(text_content.encode('utf-8')).decode('utf-8')
             
+            logger.debug(f"tencent_use_template: {self.settings.tencent_use_template}, tencent_template_id: {self.settings.tencent_template_id}")
             # Choose between template and direct content based on settings
             if self.settings.tencent_use_template and self.settings.tencent_template_id:
-                # Use template mode
+                # Use template mode - template data should be JSON string with base64 encoded content
+               
                 params["Template"] = {
                     "TemplateID": self.settings.tencent_template_id,
                     "TemplateData": json.dumps({
@@ -138,14 +147,14 @@ class TencentCloudEmailService:
                         "date": datetime.now().strftime("%B %d, %Y")
                     })
                 }
-                logger.debug(f"Using Tencent Cloud template: {self.settings.tencent_template_id}")
+                logger.debug(f"Using Tencent Cloud template: {self.settings.tencent_template_id} with base64 encoded content")
             else:
-                # Use direct content mode
+                
                 params["Simple"] = {
-                    "Html": html_content,
-                    "Text": text_content
+                    "Html": html_content_b64,
+                    "Text": text_content_b64
                 }
-                logger.debug("Using direct content mode (no template)")
+                logger.debug("Using direct content mode (no template) with base64 encoding")
             
             # Add attachments if any
             attachments = await self._prepare_attachments(report_paths)
@@ -171,6 +180,8 @@ class TencentCloudEmailService:
         attachments = []
         
         for format_type, filepath in report_paths.items():
+            if format_type == "audio":
+                continue
             if filepath and Path(filepath).exists():
                 try:
                     with open(filepath, 'rb') as f:
@@ -675,7 +686,7 @@ class EmailService:
         self, 
         recipients: List[str], 
         report_paths: Dict[str, str], 
-        report_metadata: Optional[Dict] = None
+        report_metadata: Optional[Dict] = None,
     ) -> Dict[str, bool]:
         """
         Send reports to multiple recipients.

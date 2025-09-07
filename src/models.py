@@ -159,6 +159,7 @@ class AgentState(TypedDict, total=False):
     """LangGraph workflow state - optimized for workflow execution."""
     
     # Input configuration
+    task_id: str
     urls: List[str]
     max_articles: int
     email_recipients: List[str]
