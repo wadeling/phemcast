@@ -46,7 +46,7 @@ check_docker_compose() {
 
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 [COMMAND]"
+    echo "Usage: $0 [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
     echo "  start     - Start the application"
@@ -58,15 +58,29 @@ show_usage() {
     echo "  clean     - Stop and remove containers, networks, and volumes"
     echo "  help      - Show this help message"
     echo ""
+    echo "Options:"
+    echo "  PLATFORM=platform  - Set target platform (default: linux/amd64)"
+    echo "  REGISTRY=registry   - Set registry name (default: ccr.ccs.tencentyun.com)"
+    echo "  REPO=repo          - Set repository name (default: phemcast)"
+    echo ""
     echo "Examples:"
-    echo "  $0 start     # Start the application"
-    echo "  $0 logs      # Show logs"
-    echo "  $0 restart   # Restart the application"
+    echo "  $0 start                           # Start the application"
+    echo "  $0 start PLATFORM=linux/arm64     # Start with ARM64 platform"
+    echo "  $0 build PLATFORM=linux/arm64     # Build and start for ARM64"
+    echo "  $0 logs                           # Show logs"
+    echo "  $0 restart                        # Restart the application"
 }
 
 # Function to start the application
 start_app() {
     print_status "Starting Industry News Agent..."
+    
+    # Show platform information
+    if [ -n "$PLATFORM" ]; then
+        print_status "Target platform: $PLATFORM"
+    else
+        print_status "Target platform: linux/amd64 (default)"
+    fi
     
     if docker-compose ps | grep -q "Up"; then
         print_warning "Application is already running. Use 'restart' to restart it."
@@ -116,6 +130,13 @@ show_logs() {
 # Function to build and start the application
 build_and_start() {
     print_status "Building and starting Industry News Agent..."
+    
+    # Show platform information
+    if [ -n "$PLATFORM" ]; then
+        print_status "Target platform: $PLATFORM"
+    else
+        print_status "Target platform: linux/amd64 (default)"
+    fi
     
     # Build the backend image
     print_status "Building backend image..."

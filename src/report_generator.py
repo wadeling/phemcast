@@ -648,18 +648,18 @@ class ReportGenerator:
             
             if company in data["company_insights"]:
                 insight = data["company_insights"][company]
-                sections.append(f"**趋势评分**: {insight['trend_score']:.2f}/1.0")
+                sections.append(f"#### 趋势评分 ####\n{insight['trend_score']:.2f}/1.0")
                 
                 # Add sentiment score if available
                 if 'sentiment_score' in insight and insight['sentiment_score'] is not None:
                     sentiment_emoji = "😊" if insight['sentiment_score'] > 0 else "😞" if insight['sentiment_score'] < 0 else "😐"
                     sentiment_text = "积极" if insight['sentiment_score'] > 0.1 else "消极" if insight['sentiment_score'] < -0.1 else "中性"
-                    sections.append(f"**情感评分**: {sentiment_emoji} {sentiment_text} ({insight['sentiment_score']:.2f})")
+                    sections.append(f"#### 情感评分 ####\n{sentiment_emoji} {sentiment_text} ({insight['sentiment_score']:.2f})")
                 
-                sections.append(f"**主要话题**: {', '.join(insight['key_topics'])}")
+                sections.append(f"#### 主要话题 ####\n{', '.join(insight['key_topics'])}")
                 
                 if insight['insights']:
-                    sections.append("**关键见解**:")
+                    sections.append("#### 关键见解 ####")
                     # Filter insights by quality and limit to top 5
                     quality_insights = [insight_text for insight_text in insight['insights'] if len(insight_text) > 10]
                     sections.append("\n".join(f"- {insight_text}" for insight_text in quality_insights[:5]))
@@ -673,7 +673,7 @@ class ReportGenerator:
                             article_insights.append(f"• {analysis_data['one_sentence_summary']}")
                 
                 if article_insights:
-                    sections.append("**文章要点**:")
+                    sections.append("#### 文章要点 ####")
                     sections.append("\n".join(article_insights[:3]))  # Top 3 article insights
                 
             sections.append("")
@@ -919,53 +919,53 @@ class ReportGenerator:
                 
                 # Add metadata information
                 if analysis_data.get('translated_title'):
-                    details.append(f"**中文标题**: {analysis_data['translated_title']}")
+                    details.append(f"#### 中文标题 ####\n{analysis_data['translated_title']}")
                 
                 if analysis_data.get('tags'):
                     tags_text = ", ".join(analysis_data['tags'][:5])
-                    details.append(f"**标签**: {tags_text}")
+                    details.append(f"#### 标签 ####\n{tags_text}")
                 
                 # Add one sentence summary
                 if analysis_data.get('one_sentence_summary'):
-                    details.append(f"**一句话总结**: {analysis_data['one_sentence_summary']}")
+                    details.append(f"#### 一句话总结 ####\n{analysis_data['one_sentence_summary']}")
                 
                 # Add summary content
                 if analysis_data.get('summary_content'):
-                    details.append(f"**内容摘要**: {analysis_data['summary_content']}")
+                    details.append(f"#### 内容摘要 ####\n{analysis_data['summary_content']}")
                 
                 # Add key insights
                 if analysis_data.get('insights'):
                     insights_text = "\n".join(f"- {insight}" for insight in analysis_data['insights'])
-                    details.append(f"**关键见解**:\n{insights_text}")
+                    details.append(f"#### 关键见解 ####\n{insights_text}")
                 
                 # Add topics
                 if analysis_data.get('topics'):
                     topics_text = ", ".join(analysis_data['topics'][:5])
-                    details.append(f"**主要话题**: {topics_text}")
+                    details.append(f"#### 主要话题 ####\n{topics_text}")
                 
                 # Add hierarchical structure if available
                 if analysis_data.get('hierarchical_structure'):
-                    details.append("**内容结构**:")
+                    details.append("#### 内容结构 ####")
                     for section in analysis_data['hierarchical_structure']:
                         details.append(f"  - **{section['heading']}**: {section['content']}")
                 
                 # Add sentiment
                 if analysis_data.get('sentiment'):
                     sentiment_emoji = self._get_sentiment_emoji(analysis_data['sentiment'])
-                    details.append(f"**情感分析**: {sentiment_emoji} {analysis_data['sentiment']}")
+                    details.append(f"#### 情感分析 ####\n{sentiment_emoji} {analysis_data['sentiment']}")
                 
                 # Add timestamp if available
                 if analysis_data.get('timestamp'):
                     formatted_timestamp = self._format_timestamp(analysis_data['timestamp'])
                     if formatted_timestamp:
-                        details.append(f"**分析时间**: {formatted_timestamp}")
+                        details.append(f"#### 分析时间 ####\n{formatted_timestamp}")
             
             elif article.summary:
                 # Fallback to old summary format
-                details.append(f"**摘要**: {article.summary}")
+                details.append(f"#### 摘要 ####\n{article.summary}")
                 if article.key_insights:
                     insights_text = "\n".join(f"- {insight}" for insight in article.key_insights)
-                    details.append(f"**关键见解**:\n{insights_text}")
+                    details.append(f"#### 关键见解 ####\n{insights_text}")
             
             details.append("")
         

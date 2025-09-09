@@ -16,26 +16,65 @@
 
 ### 2. 配置环境变量
 
-复制环境变量模板并配置：
+创建环境变量文件并配置：
 
 ```bash
-cp .env.template .env
-# 编辑 .env 文件，填入实际的配置值
+# 创建 .env 文件
+cat > .env << EOF
+# Registry and Repository Configuration
+REGISTRY=ccr.ccs.tencentyun.com
+REPO=phemcast
+
+# Platform Configuration
+# Supported platforms: linux/amd64, linux/arm64, linux/arm/v7
+# Default: linux/amd64
+PLATFORM=linux/amd64
+
+# Database Configuration
+MYSQL_ROOT_PASSWORD=password
+MYSQL_DATABASE=phemcast
+MYSQL_USER=phemcast
+MYSQL_PASSWORD=phemcast
+EOF
 ```
 
 ### 3. 构建镜像
 
+使用Makefile构建镜像（推荐）：
+
+```bash
+# 构建x86_64版本（默认）
+make build-all
+
+# 构建ARM64版本
+make build-all platform=linux/arm64
+
+# 构建多平台版本
+make build-multi-platform
+```
+
+或使用Docker命令直接构建：
+
 ```bash
 # 构建前端镜像
-docker build -t industry-news-agent-frontend:latest -f ../Dockerfile.frontend ..
+docker build --platform linux/amd64 -t industry-news-agent-frontend:latest -f ../Dockerfile.frontend ..
 
 # 构建后端镜像
-docker build -t industry-news-agent-backend:latest -f ../Dockerfile.backend ..
+docker build --platform linux/amd64 -t industry-news-agent-backend:latest -f ../Dockerfile.backend ..
 ```
 
 ### 4. 启动服务
 
+使用部署脚本启动（推荐）：
+
 ```bash
+# 启动x86_64版本
+./deploy.sh start
+
+# 启动ARM64版本
+PLATFORM=linux/arm64 ./deploy.sh start
+
+# 或直接使用docker-compose
 docker-compose up -d
 ```
 
@@ -45,6 +84,21 @@ docker-compose up -d
 # 等待MySQL服务启动完成
 docker-compose exec backend python init_invite_codes.py
 ```
+
+## 平台支持
+
+系统支持多种CPU架构：
+
+- **linux/amd64**: x86_64架构（Intel/AMD处理器）
+- **linux/arm64**: ARM64架构（Apple Silicon、ARM服务器）
+- **linux/arm/v7**: ARM v7架构（较老的ARM设备）
+
+### 平台选择建议
+
+- **开发环境**: 使用 `linux/amd64`（默认）
+- **Apple Silicon Mac**: 使用 `linux/arm64`
+- **ARM服务器**: 使用 `linux/arm64`
+- **树莓派等设备**: 使用 `linux/arm/v7`
 
 ## 服务说明
 

@@ -1,6 +1,7 @@
 services:
   frontend:
-    image: industry-news-agent-frontend:latest
+    image: ${REGISTRY}/${REPO}/frontend:latest
+    platform: ${PLATFORM:-linux/amd64}
     ports:
       - "80:80"
     env_file:
@@ -12,7 +13,8 @@ services:
     restart: unless-stopped
 
   backend:
-    image: industry-news-agent-backend:latest
+    image: ${REGISTRY}/${REPO}/backend:latest
+    platform: ${PLATFORM:-linux/amd64}
     ports:
       - "8000:8000"
     env_file:
@@ -35,6 +37,7 @@ services:
 
   mysql:
     image: mysql:8.0
+    platform: ${PLATFORM:-linux/amd64}
     ports:
       - "3306:3306"
     environment:
