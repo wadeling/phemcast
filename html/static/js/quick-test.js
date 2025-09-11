@@ -2,6 +2,17 @@
 
 let isSubmitting = false; // Flag to prevent duplicate submissions
 
+// Authentication helper functions
+function getFormAuthHeaders() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        return {
+            'Authorization': `Bearer ${token}`
+        };
+    }
+    return {};
+}
+
 // Initialize form with default values
 function initializeForm() {
     const urlsTextarea = document.getElementById('urls');
@@ -66,6 +77,7 @@ async function handleSubmit(event) {
     try {
         const response = await fetch('/api/generate-report-form', {
             method: 'POST',
+            headers: getFormAuthHeaders(),
             body: formData
         });
         

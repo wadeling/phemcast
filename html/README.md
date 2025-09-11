@@ -6,8 +6,6 @@ This directory contains the frontend interface for the Industry News Agent syste
 
 ### Main Pages
 - **`index.html`** - Main interface for comprehensive analysis
-- **`quick-test.html`** - Optimized for quick testing with 1 article
-- **`nav.html`** - Navigation page to choose testing mode
 
 ### JavaScript Files
 - **`js/app.js`** - Main application logic

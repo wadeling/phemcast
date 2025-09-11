@@ -37,7 +37,7 @@ class ScheduledTask(Base):
     
     id = Column(String(50), primary_key=True, index=True)
     task_name = Column(String(255), nullable=False)
-    user_id = Column(String(100), nullable=False, index=True)
+    user_name = Column(String(100), nullable=False, index=True)
     urls = Column(Text, nullable=False)  # JSON string of URLs
     email_recipients = Column(Text, nullable=True)  # JSON string of emails
     max_articles = Column(Integer, nullable=False, default=5)
@@ -71,7 +71,7 @@ class TaskExecutionHistory(Base):
     id = Column(String(50), primary_key=True, index=True)
     task_id = Column(String(50), nullable=False, index=True)  # Reference to scheduled_tasks.id
     task_name = Column(String(255), nullable=False)
-    user_id = Column(String(100), nullable=False, index=True)
+    user_name = Column(String(100), nullable=False, index=True)
     execution_type = Column(String(20), nullable=False)  # manual, scheduled
     
     # Execution details

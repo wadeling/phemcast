@@ -115,7 +115,7 @@ async def get_async_db():
 async def record_task_execution(
     task_id: str,
     task_name: str,
-    user_id: str,
+    user_name: str,
     execution_type: str,  # "manual" or "scheduled"
     status: str,  # "success", "error", "processing"
     started_at: datetime,
@@ -143,11 +143,11 @@ async def record_task_execution(
             await session.execute(
                 text("""
                     INSERT INTO task_execution_history 
-                    (id, task_id, task_name, user_id, execution_type, status, started_at, 
+                    (id, task_id, task_name, user_name, execution_type, status, started_at, 
                      completed_at, duration, total_articles, total_urls, report_paths, 
                      errors, logs, created_at)
                     VALUES 
-                    (:id, :task_id, :task_name, :user_id, :execution_type, :status, :started_at,
+                    (:id, :task_id, :task_name, :user_name, :execution_type, :status, :started_at,
                      :completed_at, :duration, :total_articles, :total_urls, :report_paths,
                      :errors, :logs, :created_at)
                 """),
@@ -155,7 +155,7 @@ async def record_task_execution(
                     "id": execution_id,
                     "task_id": task_id,
                     "task_name": task_name,
-                    "user_id": user_id,
+                    "user_name": user_name,
                     "execution_type": execution_type,
                     "status": status,
                     "started_at": started_at,

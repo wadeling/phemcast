@@ -190,7 +190,7 @@ class ScheduledTask(BaseModel):
     
     id: Optional[str] = None
     task_name: str = Field(..., description="Task name for identification")
-    user_id: str = Field(..., description="User who created the task")
+    user_name: str = Field(..., description="User who created the task")
     urls: List[str] = Field(..., description="Company blog URLs to analyze")
     email_recipients: List[str] = Field(default_factory=list, description="Email addresses for report delivery")
     max_articles: int = Field(default=5, ge=1, le=20, description="Articles per blog to analyze")

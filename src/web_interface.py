@@ -367,58 +367,13 @@ async def logout_force():
     }
 
 
-@app.post("/api/generate-report")
-async def generate_report(request: ReportRequest, background_tasks: BackgroundTasks):
-    """
-    Submit a report generation request via JSON API.
-    
-    Args:
-        request: Report generation details
-    
-    Returns:
-        Task ID for tracking progress
-    """
-    try:
-        task_id = str(uuid.uuid4())
-        
-        # Validate URLs
-        if not request.urls:
-            raise HTTPException(status_code=400, detail="At least one URL is required")
-        
-        # Validate email if provided
-        if request.email and '@' not in request.email:
-            raise HTTPException(status_code=400, detail="Invalid email address")
-        
-        # Start background processing
-        background_tasks.add_task(
-            _process_report_task,
-            task_id,
-            request.urls,
-            request.email,
-            request.max_articles
-        )
-        
-        # Register task
-        running_tasks[task_id] = {
-            "status": "processing",
-            "created_at": datetime.now().isoformat(),
-            "urls": request.urls,
-            "email": request.email,
-            "max_articles": request.max_articles
-        }
-        
-        return {"task_id": task_id, "status": "processing"}
-        
-    except Exception as e:
-        logger.error(f"Failed to create report task: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/api/generate-report-form")
 async def generate_report_form(
     urls: str = Form(...),
     email: str = Form(None),
-    max_articles: int = Form(5)
+    max_articles: int = Form(5),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Generate report from form data (with multi-line URL input).
@@ -448,7 +403,8 @@ async def generate_report_form(
                 task_id, 
                 url_list, 
                 email, 
-                max_articles
+                max_articles,
+                current_user.username
             )
         )
         
@@ -491,25 +447,26 @@ async def list_tasks():
 
 
 @app.get("/api/recent-tasks")
-async def get_recent_tasks():
-    """Get the 5 most recent completed tasks from task_execution_history."""
+async def get_recent_tasks(current_user: User = Depends(get_current_user)):
+    """Get the 5 most recent completed tasks for the current user from task_execution_history."""
     try:
         from sqlalchemy import text
         
         db = await get_async_db()
         async with db as session:
-            # Query the 5 most recent completed tasks
+            # Query the 5 most recent completed tasks for the current user
             result = await session.execute(
                 text("""
                     SELECT 
-                        id, task_id, task_name, user_id, execution_type,
+                        id, task_id, task_name, user_name, execution_type,
                         status, started_at, completed_at, duration,
                         total_articles, total_urls, report_paths, errors, logs, created_at
                     FROM task_execution_history 
-                    WHERE status = 'completed' 
+                    WHERE status = 'completed' AND user_name = :user_name
                     ORDER BY completed_at DESC 
                     LIMIT 5
-                """)
+                """),
+                {"user_name": current_user.username}
             )
             rows = result.fetchall()
             
@@ -551,12 +508,12 @@ async def get_recent_tasks():
 
 
 @app.get("/api/task-status-list")
-async def get_task_status_list():
-    """Get the 5 most recent tasks with smart status handling (prefer completed over processing)."""
+async def get_task_status_list(current_user: User = Depends(get_current_user)):
+    """Get the 5 most recent tasks for the current user with smart status handling (prefer completed over processing)."""
     try:
         # Add timeout to prevent long blocking
         import asyncio
-        return await asyncio.wait_for(_get_task_status_list_impl(), timeout=30.0)
+        return await asyncio.wait_for(_get_task_status_list_impl(current_user.username), timeout=30.0)
     except asyncio.TimeoutError:
         logger.error(f"task-status-list timed out after 30 seconds")
         raise HTTPException(status_code=504, detail="Request timeout")
@@ -565,22 +522,24 @@ async def get_task_status_list():
         raise HTTPException(status_code=500, detail=f"Failed to retrieve task status list: {str(e)}")
 
 
-async def _get_task_status_list_impl():
-    """Implementation of task status list retrieval."""
+async def _get_task_status_list_impl(user_id: str):
+    """Implementation of task status list retrieval for a specific user."""
     try:
         from sqlalchemy import text
         
         db = await get_async_db()
         async with db as session:
-            # First, get the 5 most recent task_ids (regardless of status)
+            # First, get the 5 most recent task_ids for the current user (regardless of status)
             recent_task_ids_result = await session.execute(
                 text("""
                     SELECT DISTINCT task_id, MAX(created_at) as latest_created_at
                     FROM task_execution_history 
+                    WHERE user_name = :user_name
                     GROUP BY task_id
                     ORDER BY latest_created_at DESC 
                     LIMIT 5
-                """)
+                """),
+                {"user_name": user_id}
             )
             recent_task_ids = [row.task_id for row in recent_task_ids_result.fetchall()]
             
@@ -591,18 +550,18 @@ async def _get_task_status_list_impl():
             # If there are both 'processing' and 'completed' records, prefer 'completed'
             tasks = []
             for task_id in recent_task_ids:
-                # Get all execution records for this task_id
+                # Get all execution records for this task_id and user
                 result = await session.execute(
                     text("""
                         SELECT 
-                            id, task_id, task_name, user_id, execution_type,
+                            id, task_id, task_name, user_name, execution_type,
                             status, started_at, completed_at, duration,
                             total_articles, total_urls, report_paths, errors, logs, created_at
                         FROM task_execution_history 
-                        WHERE task_id = :task_id
+                        WHERE task_id = :task_id AND user_name = :user_name
                         ORDER BY created_at DESC
                     """),
-                    {"task_id": task_id}
+                    {"task_id": task_id, "user_name": user_id}
                 )
                 rows = result.fetchall()
                 
@@ -666,14 +625,14 @@ async def _get_task_status_list_impl():
 
 
 @app.get("/download/{task_id}/{format_type}")
-async def download_report(task_id: str, format_type: str):
+async def download_report(task_id: str, format_type: str ):
     """Download generated report by format type (simple endpoint)."""
     try:
         from sqlalchemy import text
         
         db = await get_async_db()
         async with db as session:
-            # Query task from task_execution_history table
+            # Query task from task_execution_history table for the current user
             result = await session.execute(
                 text("""
                     SELECT 
@@ -683,7 +642,7 @@ async def download_report(task_id: str, format_type: str):
                     ORDER BY completed_at DESC 
                     LIMIT 1
                 """),
-                {"task_id": task_id}
+                {"task_id": task_id }
             )
             row = result.fetchone()
             
@@ -763,7 +722,7 @@ async def _process_report_task(
     urls: List[str], 
     email: Optional[str], 
     max_articles: int,
-    user_id: str = "anonymous",
+    user_name: str,
     task_name: str = "Manual Report Generation"
 ):
     """Background task for processing reports."""
@@ -779,7 +738,7 @@ async def _process_report_task(
             await record_task_execution(
                 task_id=task_id,
                 task_name=task_name,
-                user_id=user_id,
+                user_name=user_name,
                 execution_type="manual",
                 status="processing",
                 started_at=started_at
@@ -824,7 +783,7 @@ async def _process_report_task(
             await record_task_execution(
                 task_id=task_id,
                 task_name=task_name,
-                user_id=user_id,
+                user_name=user_name,
                 execution_type="manual",
                 status=result["status"],
                 started_at=started_at,
@@ -874,7 +833,7 @@ async def _process_report_task(
             await record_task_execution(
                 task_id=task_id,
                 task_name=task_name,
-                user_id=user_id,
+                user_id=user_name,
                 execution_type="manual",
                 status="error",
                 started_at=started_at,
@@ -892,7 +851,7 @@ async def _process_report_task(
             "task_id": task_id,
             "status": "error",
             "message": "Task failed",
-            "error": str(e)
+            "error": "Task failed"
         })
 
 

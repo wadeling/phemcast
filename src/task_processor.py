@@ -151,7 +151,7 @@ class TaskProcessor:
                         task_data = {
                             'id': row.id,
                             'task_name': row.task_name,
-                            'user_id': row.user_id,
+                            'user_name': row.user_name,
                             'urls': json.loads(row.urls) if row.urls else [],
                             'email_recipients': json.loads(row.email_recipients) if row.email_recipients else [],
                             'max_articles': int(row.max_articles) if row.max_articles else 5,

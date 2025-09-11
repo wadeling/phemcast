@@ -4,6 +4,39 @@ let isSubmitting = false; // Flag to prevent duplicate submissions
 let websocket = null; // WebSocket connection
 let currentTaskId = null; // Current task ID being monitored
 
+// Authentication helper functions
+function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        return {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+    }
+    return {
+        'Content-Type': 'application/json'
+    };
+}
+
+function getFormAuthHeaders() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        return {
+            'Authorization': `Bearer ${token}`
+        };
+    }
+    return {};
+}
+
+function checkAuthStatus() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return false;
+    }
+    return true;
+}
+
 // Initialize form with default values
 function initializeForm() {
     const urlsTextarea = document.getElementById('urls');
@@ -42,6 +75,7 @@ async function handleSubmit(event) {
     try {
         const response = await fetch('/api/generate-report-form', {
             method: 'POST',
+            headers: getFormAuthHeaders(),
             body: formData
         });
         
@@ -635,9 +669,21 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadExistingTaskCards() {
     console.log('Loading existing task cards...');
     
+    // Check authentication status
+    if (!checkAuthStatus()) {
+        return;
+    }
+    
     try {
-        const response = await fetch('/api/recent-tasks');
+        const response = await fetch('/api/recent-tasks', {
+            headers: getAuthHeaders()
+        });
         if (!response.ok) {
+            if (response.status === 401) {
+                // Token expired, redirect to login
+                window.location.href = '/login';
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
@@ -765,12 +811,24 @@ function closeTaskStatusModal() {
 async function loadTaskStatusList() {
     const taskStatusList = document.getElementById('taskStatusList');
     
+    // Check authentication status
+    if (!checkAuthStatus()) {
+        return;
+    }
+    
     try {
         console.log('Loading task status list...');
         // Fetch recent tasks from the new task status API
-        const response = await fetch('/api/task-status-list');
+        const response = await fetch('/api/task-status-list', {
+            headers: getAuthHeaders()
+        });
         console.log('Task status list response:', response);
         if (!response.ok) {
+            if (response.status === 401) {
+                // Token expired, redirect to login
+                window.location.href = '/login';
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
