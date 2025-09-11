@@ -93,6 +93,13 @@ async def get_user_by_username(username: str) -> Optional[User]:
         return result.scalar_one_or_none()
 
 
+async def get_user_by_email(email: str) -> Optional[User]:
+    """Get a user by email."""
+    async with await get_async_db() as session:
+        result = await session.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
+
+
 async def verify_invite_code(code: str) -> Optional[InviteCode]:
     """Verify if an invite code is valid and unused."""
     async with await get_async_db() as session:
@@ -133,6 +140,14 @@ async def create_user(username: str, email: str, password: str, invite_code: str
             raise HTTPException(
                 status_code=400,
                 detail="Username already exists"
+            )
+        
+        # Check if email already exists
+        existing_email_user = await get_user_by_email(email)
+        if existing_email_user:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already exists"
             )
         
         # Create user

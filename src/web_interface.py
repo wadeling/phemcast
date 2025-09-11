@@ -122,7 +122,7 @@ class InviteVerifyRequest(BaseModel):
 class RegisterRequest(BaseModel):
     """User registration request."""
     username: str = Field(..., description="Username")
-    email: Optional[str] = Field(None, description="Email")
+    email: str = Field(..., description="Email")
     password: str = Field(..., description="Password")
     invite_code: str = Field(..., description="Invite code")
 
@@ -320,7 +320,7 @@ async def register(request: RegisterRequest):
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create user: {str(e)}"
+            detail=f"Failed to create user"
         )
 
 
@@ -347,7 +347,7 @@ async def logout(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(
         }
         
     except Exception as e:
-        logger.error(f"Error during logout: {str(e)}")
+        logger.error(f"Error during logout")
         # Even if there's an error, we should still return success
         # because the client will clear the token anyway
         return {
@@ -419,8 +419,8 @@ async def generate_report_form(
         return {"task_id": task_id, "status": "processing"}
         
     except Exception as e:
-        logger.error(f"Failed to process form submission: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to process form submission")
+        raise HTTPException(status_code=500, detail="Failed to process form submission")
 
 
 @app.get("/api/task/{task_id}")
@@ -504,7 +504,7 @@ async def get_recent_tasks(current_user: User = Depends(get_current_user)):
             
     except Exception as e:
         logger.error(f"Failed to get recent tasks: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve recent tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve recent tasks")
 
 
 @app.get("/api/task-status-list")
@@ -519,10 +519,10 @@ async def get_task_status_list(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=504, detail="Request timeout")
     except Exception as e:
         logger.error(f"task-status-list failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve task status list: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve task status list")
 
 
-async def _get_task_status_list_impl(user_id: str):
+async def _get_task_status_list_impl(user_name: str):
     """Implementation of task status list retrieval for a specific user."""
     try:
         from sqlalchemy import text
@@ -539,7 +539,7 @@ async def _get_task_status_list_impl(user_id: str):
                     ORDER BY latest_created_at DESC 
                     LIMIT 5
                 """),
-                {"user_name": user_id}
+                {"user_name": user_name}
             )
             recent_task_ids = [row.task_id for row in recent_task_ids_result.fetchall()]
             
@@ -561,7 +561,7 @@ async def _get_task_status_list_impl(user_id: str):
                         WHERE task_id = :task_id AND user_name = :user_name
                         ORDER BY created_at DESC
                     """),
-                    {"task_id": task_id, "user_name": user_id}
+                    {"task_id": task_id, "user_name": user_name}
                 )
                 rows = result.fetchall()
                 

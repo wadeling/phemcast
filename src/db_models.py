@@ -23,7 +23,7 @@ class User(Base):
     __tablename__ = "users"
     
     username = Column(String(100), primary_key=True, index=True)
-    email = Column(String(255), unique=True, index=True, nullable=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_login = Column(DateTime, nullable=True)

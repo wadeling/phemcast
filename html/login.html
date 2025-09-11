@@ -199,8 +199,8 @@
                     <input type="text" id="reg-username" name="username" required>
                 </div>
                 <div class="form-group">
-                    <label for="reg-email">邮箱 (可选)</label>
-                    <input type="email" id="reg-email" name="email">
+                    <label for="reg-email">邮箱</label>
+                    <input type="email" id="reg-email" name="email" required>
                 </div>
                 <div class="form-group">
                     <label for="reg-password">密码</label>
@@ -306,6 +306,11 @@
             
             if (password !== confirmPassword) {
                 document.getElementById('register-error').textContent = '两次输入的密码不一致';
+                return;
+            }
+            
+            if (!email.trim()) {
+                document.getElementById('register-error').textContent = '邮箱不能为空';
                 return;
             }
             
