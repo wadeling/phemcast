@@ -127,7 +127,7 @@ class TaskManager:
             async with db as session:
                 # Query user's tasks
                 result = await session.execute(
-                    text("SELECT * FROM scheduled_tasks WHERE user_id = :username ORDER BY created_at DESC"),
+                    text("SELECT * FROM scheduled_tasks WHERE user_name = :username ORDER BY created_at DESC"),
                     {'username': username}
                 )
                 rows = result.fetchall()
@@ -139,7 +139,7 @@ class TaskManager:
                         task_data = {
                             'id': row.id,
                             'task_name': row.task_name,
-                            'user_id': row.user_id,
+                            'user_name': row.user_name,
                             'urls': json.loads(row.urls) if row.urls else [],
                             'email_recipients': json.loads(row.email_recipients) if row.email_recipients else [],
                             'max_articles': int(row.max_articles) if row.max_articles else 5,

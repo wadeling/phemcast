@@ -85,7 +85,7 @@ async function handleSubmit(event) {
             currentTaskId = result.task_id; // Set current task ID for WebSocket monitoring
             
             // 显示任务提交成功提示
-            showAlertModal('Success', 'Task submitted successfully! You can check the task status by clicking the "Tasks" button.');
+            showAlertModal(window.i18n.t('message.success'), window.i18n.t('message.task_submitted'));
             
             console.log('Task started successfully:', result.task_id);
         } else {
@@ -93,7 +93,7 @@ async function handleSubmit(event) {
         }
     } catch (error) {
         console.error('Task submission failed:', error);
-        showAlertModal('Error', `Task submission failed: ${error.message || 'Unknown error occurred'}`);
+        showAlertModal(window.i18n.t('message.error'), `${window.i18n.t('message.task_submission_failed')} ${error.message || 'Unknown error occurred'}`);
     } finally {
         isSubmitting = false; // Reset flag regardless of success or error
     }
@@ -602,7 +602,7 @@ function validateForm() {
     const email = document.getElementById('email').value.trim();
     
     if (!urls) {
-        showAlertModal('Validation Error', 'Please enter at least one URL.');
+        showAlertModal(window.i18n.t('common.error'), window.i18n.t('validation.urls_required'));
         return false;
     }
     
@@ -618,12 +618,12 @@ function validateForm() {
     });
     
     if (invalidUrls.length > 0) {
-        showAlertModal('Validation Error', `Invalid URLs detected: ${invalidUrls.join(', ')}`);
+        showAlertModal(window.i18n.t('common.error'), `${window.i18n.t('validation.invalid_url')}: ${invalidUrls.join(', ')}`);
         return false;
     }
     
     if (email && !isValidEmail(email)) {
-        showAlertModal('Validation Error', 'Please enter a valid email address.');
+        showAlertModal(window.i18n.t('common.error'), window.i18n.t('validation.email_invalid'));
         return false;
     }
     

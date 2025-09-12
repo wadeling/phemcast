@@ -16,24 +16,24 @@
                 <span class="logo-text">PHEMCAST</span>
             </div>
             <nav class="nav">
-                <a href="#" class="nav-link">Features</a>
-                <a href="#" class="nav-link">About</a>
-                <a href="#" class="nav-link">Documentation</a>
-                <a href="#" class="nav-link">Support</a>
+                <a href="#" class="nav-link" data-i18n="nav.features">Features</a>
+                <a href="#" class="nav-link" data-i18n="nav.about">About</a>
+                <a href="#" class="nav-link" data-i18n="nav.documentation">Documentation</a>
+                <a href="#" class="nav-link" data-i18n="nav.support">Support</a>
             </nav>
             <div class="header-actions">
                 <span id="user-info" class="user-info" style="display: none;">
-                    <span class="welcome-text">Welcome, <span id="username" class="username"></span></span>
+                    <span class="welcome-text"><span data-i18n="header.welcome">Welcome,</span> <span id="username" class="username"></span></span>
                     <button id="task-status-btn" class="task-status-btn" onclick="showTaskStatusModal(true)" title="Task Status">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                         </svg>
-                        Tasks
+                        <span data-i18n="header.tasks">Tasks</span>
                     </button>
-                    <a href="#" onclick="logout()" class="logout-link">Logout</a>
+                    <a href="#" onclick="logout()" class="logout-link" data-i18n="header.logout">Logout</a>
                 </span>
                 <div id="websocket-status" class="websocket-status" style="display: none;">
-                    <span id="ws-indicator" class="ws-indicator">🔌 WebSocket: 连接中...</span>
+                    <span id="ws-indicator" class="ws-indicator">🔌 <span data-i18n="header.websocket.connecting">WebSocket: Connecting...</span></span>
                 </div>
             </div>
         </div>
@@ -42,9 +42,9 @@
     <!-- Main Content -->
     <main class="main">
         <div class="hero">
-            <div class="hero-badge">AI-Powered Podcast Generator</div>
-            <h1 class="hero-title">Summon the voice of industry intelligence</h1>
-            <p class="hero-subtitle">PHEMCAST transforms enterprise blogs into compelling podcasts. Our AI automatically gathers public voices, analyzes insights, and summons them into powerful audio narratives that command attention.</p>
+            <div class="hero-badge" data-i18n="hero.badge">AI-Powered Podcast Generator</div>
+            <h1 class="hero-title" data-i18n="hero.title">Summon the voice of industry intelligence</h1>
+            <p class="hero-subtitle" data-i18n="hero.subtitle">PHEMCAST transforms enterprise blogs into compelling podcasts. Our AI automatically gathers public voices, analyzes insights, and summons them into powerful audio narratives that command attention.</p>
         </div>
         
 
@@ -52,28 +52,28 @@
         <!-- Podcast Generation Form -->
         <div class="form-container">
             <div class="form-header">
-                <h2>Summon Your Industry Podcast</h2>
-                <p>Configure your podcast parameters and let PHEMCAST gather the voices</p>
+                <h2 data-i18n="form.title">Summon Your Industry Podcast</h2>
+                <p data-i18n="form.subtitle">Configure your podcast parameters and let PHEMCAST gather the voices</p>
             </div>
             
             <form id="reportForm" class="report-form">
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="urls">Enterprise Voice Sources</label>
-                        <textarea id="urls" name="urls" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required>https://wiz.io/blog</textarea>
+                        <label for="urls" data-i18n="form.urls.label">Enterprise Voice Sources</label>
+                        <textarea id="urls" name="urls" data-i18n="form.urls.placeholder" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required>https://wiz.io/blog</textarea>
                         <small class="form-hint">🎯 PHEMCAST will gather public voices from these enterprise blogs</small>
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="email">Podcast Delivery Email</label>
-                        <input type="email" id="email" name="email" placeholder="your.email@company.com">
+                        <label for="email" data-i18n="form.email.label">Podcast Delivery Email</label>
+                        <input type="email" id="email" name="email" data-i18n="form.email.placeholder" placeholder="your.email@company.com">
                         <small class="form-hint">📧 Your summoned podcast will be delivered here (optional)</small>
                     </div>
                     
                     <div class="form-group">
-                        <label for="max_articles">Voice Depth per Source</label>
+                        <label for="max_articles" data-i18n="form.articles.label">Voice Depth per Source</label>
                         <select id="max_articles" name="max_articles">
                             <option value="1" selected>1 voice (Quick summon)</option>
                             <option value="3">3 voices</option>
@@ -87,14 +87,14 @@
                 
                 <div class="form-actions">
                     <button type="submit" class="cta-button primary">
-                        <span>Summon Podcast</span>
+                        <span data-i18n="form.submit">Summon Podcast</span>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
                         </svg>
                     </button>
                     
                     <button type="button" class="cta-button secondary" onclick="openScheduledTasksModal()">
-                        <span>Schedule Auto-Summon</span>
+                        <span data-i18n="form.schedule">Schedule Auto-Summon</span>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                         </svg>
@@ -109,16 +109,16 @@
         <!-- Podcast Library Section -->
         <div class="task-cards-section">
             <div class="section-header">
-                <h2>Your Summoned Podcasts</h2>
-                <p>Command your collection of industry intelligence podcasts</p>
+                <h2 data-i18n="task.section.title">Your Summoned Podcasts</h2>
+                <p data-i18n="task.section.subtitle">Command your collection of industry intelligence podcasts</p>
             </div>
             
             <div class="task-cards-container" id="taskCardsContainer">
                 <!-- Podcast cards will be dynamically generated here -->
                 <div class="no-tasks-message" id="noTasksMessage">
                     <div class="no-tasks-icon">🎙️</div>
-                    <h3>No podcasts summoned yet</h3>
-                    <p>Summon your first industry podcast to see it appear here</p>
+                    <h3 data-i18n="task.no_podcasts.title">No podcasts summoned yet</h3>
+                    <p data-i18n="task.no_podcasts.desc">Summon your first industry podcast to see it appear here</p>
                 </div>
             </div>
         </div>
@@ -128,56 +128,56 @@
         <div id="scheduledTasksModal" class="modal" style="display: none;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>⏰ 定时任务管理</h2>
+                    <h2>⏰ <span data-i18n="modal.title">定时任务管理</span></h2>
                     <span class="close" onclick="closeScheduledTasksModal()">&times;</span>
                 </div>
                 
                 <div class="modal-body">
                     <!-- 创建新任务表单 -->
                     <form id="taskForm">
-                        <h3>创建新定时任务</h3>
+                        <h3 data-i18n="modal.create_task">创建新定时任务</h3>
                         
                         <div class="form-group">
-                            <label>任务名称:</label>
-                            <input type="text" id="modal_taskName" required placeholder="例如：每周行业报告">
+                            <label data-i18n="modal.task_name">任务名称:</label>
+                            <input type="text" id="modal_taskName" required data-i18n="modal.task_name_placeholder" placeholder="例如：每周行业报告">
                         </div>
                         
                         <div class="form-group">
-                            <label>URLs (每行一个):</label>
-                            <textarea id="modal_urls" rows="3" required placeholder="https://blog.openai.com&#10;https://blog.microsoft.com"></textarea>
+                            <label data-i18n="modal.urls">URLs (每行一个):</label>
+                            <textarea id="modal_urls" rows="3" required data-i18n="modal.urls_placeholder" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com"></textarea>
                         </div>
                         
                         <div class="form-group">
-                            <label>邮件接收者:</label>
-                            <input type="text" id="emailRecipients" placeholder="多个邮箱用逗号分隔（可选）">
+                            <label data-i18n="modal.email_recipients">邮件接收者:</label>
+                            <input type="text" id="emailRecipients" data-i18n="modal.email_recipients_placeholder" placeholder="多个邮箱用逗号分隔（可选）">
                         </div>
                         
                         <div class="form-group">
-                            <label>执行频率:</label>
+                            <label data-i18n="modal.schedule_frequency">执行频率:</label>
                             <select id="modal_scheduleType" required>
-                                <option value="daily">每天</option>
-                                <option value="weekly">每周</option>
-                                <option value="monthly">每月</option>
+                                <option value="daily" data-i18n="modal.schedule_daily">每天</option>
+                                <option value="weekly" data-i18n="modal.schedule_weekly">每周</option>
+                                <option value="monthly" data-i18n="modal.schedule_monthly">每月</option>
                             </select>
                         </div>
                         
                         <div class="form-group">
-                            <label>执行时间 (东八区时间):</label>
+                            <label data-i18n="modal.execution_time">执行时间 (东八区时间):</label>
                             <input type="time" id="scheduleTime" required value="09:00">
                         </div>
                         
                         <div class="form-group" id="scheduleDayGroup" style="display:none;">
-                            <label>执行日期:</label>
+                            <label data-i18n="modal.execution_date">执行日期:</label>
                             <select id="scheduleDay"></select>
                         </div>
                         
-                        <button type="submit" class="btn">创建任务</button>
+                        <button type="submit" class="btn" data-i18n="modal.create_button">创建任务</button>
                     </form>
                     
                     <!-- 任务列表 -->
                     <div class="task-list">
-                        <h3>我的定时任务</h3>
-                        <div id="tasksList">加载中...</div>
+                        <h3 data-i18n="modal.my_tasks">我的定时任务</h3>
+                        <div id="tasksList" data-i18n="modal.loading">加载中...</div>
                     </div>
                 </div>
             </div>
@@ -188,33 +188,33 @@
             <div class="features-grid">
                 <div class="feature-card">
                     <div class="feature-icon">🎯</div>
-                    <h3>Voice Gathering</h3>
-                    <p>PHEMCAST automatically summons public voices from enterprise blogs and industry sources</p>
+                    <h3 data-i18n="features.voice.title">Voice Gathering</h3>
+                    <p data-i18n="features.voice.desc">PHEMCAST automatically summons public voices from enterprise blogs and industry sources</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🧠</div>
-                    <h3>Intelligence Analysis</h3>
-                    <p>Advanced AI algorithms analyze and synthesize insights into compelling narratives</p>
+                    <h3 data-i18n="features.podcast.title">Intelligence Analysis</h3>
+                    <p data-i18n="features.podcast.desc">Advanced AI algorithms analyze and synthesize insights into compelling narratives</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🎙️</div>
-                    <h3>Podcast Crafting</h3>
-                    <p>Transform industry insights into professional-grade podcasts with natural voice synthesis</p>
+                    <h3 data-i18n="features.podcast.title">Podcast Crafting</h3>
+                    <p data-i18n="features.podcast.desc">Transform industry insights into professional-grade podcasts with natural voice synthesis</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">⚡</div>
-                    <h3>Rapid Summoning</h3>
-                    <p>Generate industry podcasts in minutes, not hours, with our optimized processing pipeline</p>
+                    <h3 data-i18n="features.rapid.title">Rapid Summoning</h3>
+                    <p data-i18n="features.rapid.desc">Generate industry podcasts in minutes, not hours, with our optimized processing pipeline</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔄</div>
-                    <h3>Auto-Summon Scheduling</h3>
-                    <p>Set up recurring podcast generation to stay ahead of industry trends automatically</p>
+                    <h3 data-i18n="features.scheduling.title">Auto-Summon Scheduling</h3>
+                    <p data-i18n="features.scheduling.desc">Set up recurring podcast generation to stay ahead of industry trends automatically</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🛡️</div>
-                    <h3>Respectful Harvesting</h3>
-                    <p>Ethical content gathering with built-in rate limiting and respectful data practices</p>
+                    <h3 data-i18n="features.ethical.title">Respectful Harvesting</h3>
+                    <p data-i18n="features.ethical.desc">Ethical content gathering with built-in rate limiting and respectful data practices</p>
                 </div>
             </div>
             
@@ -222,6 +222,7 @@
         </div>
     </main>
     
+    <script src="/static/js/i18n.js"></script>
     <script src="/static/js/app.js"></script>
     
     <script>
@@ -411,6 +412,10 @@
         // 定时任务管理弹窗控制函数
         function openScheduledTasksModal() {
             document.getElementById('scheduledTasksModal').style.display = 'block';
+            // 重新翻译弹窗内容
+            if (window.i18n) {
+                window.i18n.translatePage();
+            }
             setupTaskForm();
             loadTasks();
         }
@@ -434,12 +439,19 @@
             
             if (type === 'weekly') {
                 group.style.display = 'block';
-                select.innerHTML = '<option value="monday">周一</option><option value="tuesday">周二</option><option value="wednesday">周三</option><option value="thursday">周四</option><option value="friday">周五</option><option value="saturday">周六</option><option value="sunday">周日</option>';
+                const isChinese = window.i18n && window.i18n.isChinese();
+                if (isChinese) {
+                    select.innerHTML = '<option value="monday">周一</option><option value="tuesday">周二</option><option value="wednesday">周三</option><option value="thursday">周四</option><option value="friday">周五</option><option value="saturday">周六</option><option value="sunday">周日</option>';
+                } else {
+                    select.innerHTML = '<option value="monday">Monday</option><option value="tuesday">Tuesday</option><option value="wednesday">Wednesday</option><option value="thursday">Thursday</option><option value="friday">Friday</option><option value="saturday">Saturday</option><option value="sunday">Sunday</option>';
+                }
             } else if (type === 'monthly') {
                 group.style.display = 'block';
                 select.innerHTML = '';
+                const isChinese = window.i18n && window.i18n.isChinese();
                 for (let i = 1; i <= 31; i++) {
-                    select.innerHTML += `<option value="${i}">${i}号</option>`;
+                    const suffix = isChinese ? '号' : '';
+                    select.innerHTML += `<option value="${i}">${i}${suffix}</option>`;
                 }
             } else {
                 group.style.display = 'none';
@@ -494,7 +506,7 @@
             try {
                 const token = localStorage.getItem('access_token') || localStorage.getItem('token');
                 if (!token) {
-                    document.getElementById('tasksList').innerHTML = '请先登录';
+                    document.getElementById('tasksList').innerHTML = window.i18n ? window.i18n.t('modal.please_login') : '请先登录';
                     return;
                 }
                 
@@ -508,13 +520,16 @@
                     const result = await response.json();
                     displayTasks(result.tasks || []);
                 } else if (response.status === 401) {
-                    document.getElementById('tasksList').innerHTML = '登录已过期，请重新登录';
+                    document.getElementById('tasksList').innerHTML = window.i18n ? window.i18n.t('modal.login_expired') : '登录已过期，请重新登录';
                 } else {
                     const errorData = await response.json();
-                    document.getElementById('tasksList').innerHTML = '加载失败: ' + (errorData.detail || '未知错误');
+                    const errorMsg = window.i18n ? window.i18n.t('modal.load_failed') : '加载失败';
+                    const unknownError = window.i18n ? window.i18n.t('modal.unknown_error') : '未知错误';
+                    document.getElementById('tasksList').innerHTML = errorMsg + ': ' + (errorData.detail || unknownError);
                 }
             } catch (error) {
-                document.getElementById('tasksList').innerHTML = '加载失败: ' + error.message;
+                const errorMsg = window.i18n ? window.i18n.t('modal.load_failed') : '加载失败';
+                document.getElementById('tasksList').innerHTML = errorMsg + ': ' + error.message;
             }
         }
         
@@ -523,28 +538,51 @@
             const container = document.getElementById('tasksList');
             
             if (!tasks || tasks.length === 0) {
-                container.innerHTML = '暂无定时任务';
+                container.innerHTML = window.i18n ? window.i18n.t('modal.no_tasks') : '暂无定时任务';
                 return;
             }
             
-            const html = tasks.map(task => `
+            const html = tasks.map(task => {
+                const executionPlan = window.i18n ? window.i18n.t('modal.execution_plan') : '执行计划';
+                const status = window.i18n ? window.i18n.t('modal.status') : '状态';
+                const active = window.i18n ? window.i18n.t('modal.active') : '活跃';
+                const paused = window.i18n ? window.i18n.t('modal.paused') : '暂停';
+                const pauseBtn = window.i18n ? window.i18n.t('modal.pause') : '暂停';
+                const startBtn = window.i18n ? window.i18n.t('modal.start') : '启动';
+                const deleteBtn = window.i18n ? window.i18n.t('modal.delete') : '删除';
+                
+                return `
                 <div class="task-item">
                     <h3>${task.task_name}</h3>
-                    <p>执行计划: ${formatSchedule(task.schedule_type, task.schedule_time, task.schedule_day)}</p>
-                    <p>状态: ${task.is_active ? '活跃' : '暂停'}</p>
-                    <button onclick="toggleTask('${task.id}')" class="btn">${task.is_active ? '暂停' : '启动'}</button>
-                    <button onclick="deleteTask('${task.id}')" class="btn" style="background: #dc3545;">删除</button>
+                    <p>${executionPlan}: ${formatSchedule(task.schedule_type, task.schedule_time, task.schedule_day)}</p>
+                    <p>${status}: ${task.is_active ? active : paused}</p>
+                    <button onclick="toggleTask('${task.id}')" class="btn">${task.is_active ? pauseBtn : startBtn}</button>
+                    <button onclick="deleteTask('${task.id}')" class="btn" style="background: #dc3545;">${deleteBtn}</button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
             
             container.innerHTML = html;
         }
         
         // 格式化执行计划显示
         function formatSchedule(type, time, day) {
-            if (type === 'daily') return `每天 ${time}`;
-            if (type === 'weekly') return `每周${day} ${time}`;
-            if (type === 'monthly') return `每月${day}号 ${time}`;
+            if (!window.i18n) {
+                // Fallback to Chinese if i18n not available
+                if (type === 'daily') return `每天 ${time}`;
+                if (type === 'weekly') return `每周${day} ${time}`;
+                if (type === 'monthly') return `每月${day}号 ${time}`;
+                return `${type} ${time}`;
+            }
+            
+            const daily = window.i18n.t('modal.daily');
+            const weekly = window.i18n.t('modal.weekly');
+            const monthly = window.i18n.t('modal.monthly');
+            const daySuffix = window.i18n.t('modal.day');
+            
+            if (type === 'daily') return `${daily} ${time}`;
+            if (type === 'weekly') return `${weekly}${day} ${time}`;
+            if (type === 'monthly') return `${monthly}${day}${daySuffix} ${time}`;
             return `${type} ${time}`;
         }
         
