@@ -3,6 +3,10 @@ import asyncio
 import aiohttp
 import feedparser
 import re
+import json
+import subprocess
+import tempfile
+import os
 from typing import List, Dict, Optional, Tuple
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
@@ -133,6 +137,16 @@ class AsyncWebScraper:
             # Otherwise, treat as blog index page with multiple articles
             if self._is_rss_feed(url):
                 return await self._scrape_rss(url, max_articles)
+            elif "aquasec.com" in url.lower():
+                # Try Scira.ai API first, then fallback to curl
+                if self.settings.enable_scira_api and self.settings.scira_api_key:
+                    try:
+                        return await self._scrape_with_scira_api(url, max_articles)
+                    except Exception as e:
+                        logger.warning(f"Scira.ai API failed, falling back to curl: {e}")
+                
+                # Fallback to curl method
+                return await self._scrape_with_curl(url, max_articles)
             elif "medium.com" in url.lower():
                 return await self._scrape_medium(url, max_articles)
             elif "wordpress.com" in url or "/wp-content/" in url.lower():
@@ -234,63 +248,30 @@ class AsyncWebScraper:
         return articles
     
     async def _scrape_generic_blog(self, url: str, max_articles: int) -> List[Article]:
-        """Scrape generic blog using BeautifulSoup."""
+        """Scrape generic blog using unified fetching logic."""
         try:
-            async with self.session.get(url) as response:
-                if response.status != 200:
-                    raise WebScrapingError(f"HTTP {response.status}: {url}")
-                
-                html = await response.text()
-                soup = BeautifulSoup(html, 'html.parser')
-                
-                # Remove scripts and styles
-                for script in soup(["script", "style"]):
-                    script.decompose()
-                
-                articles = []
-                company_name = self._extract_company_name(url)
-                
-                # Try to find blog posts/articles
-                article_selectors = [
-                    'article',
-                    '.post',
-                    '.entry-content',
-                    '.blog-post',
-                    '[itemtype*="BlogPosting"]',
-                    '.post-content',
-                    'main article',
-                    '.article'
-                ]
-                
-                # Find potential article links
-                article_links = self._find_article_links(soup, url)
-                logger.info(f"Found {len(article_links)} article links:{article_links}")
-                
-                for link in article_links[:max_articles]:
-                    try:
-                        # article_url = urljoin(url, link.get('href', ''))
-                        article_data = await self._scrape_single_article(link)
-                        
-                        if article_data:
-                            article = Article(
-                                url=article_data['url'],
-                                title=article_data['title'],
-                                content=article_data['content'],
-                                company_name=company_name,
-                                author=article_data.get('author'),
-                                publish_date=article_data.get('publish_date'),
-                                word_count=len(article_data['content'].split())
-                            )
-                            logger.debug(f"Found article: {article.title}, content: {article.content}")
-                            articles.append(article)
-                            
-                    except Exception:
-                        continue  # Skip individual article failures
-                
-                return articles
+            # Use unified page content fetching
+            html_content = await self._fetch_page_content(url)
+            if not html_content:
+                logger.warning(f"Failed to fetch content from {url}, returning empty list")
+                return []
+            
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Remove scripts and styles
+            for script in soup(["script", "style"]):
+                script.decompose()
+            
+            company_name = self._extract_company_name(url)
+            
+            # Use unified article extraction logic
+            articles = await self._extract_articles_from_html(soup, url, max_articles, company_name, scrape_full_content=True)
+            
+            return articles
                 
         except Exception as e:
-            raise WebScrapingError(f"Generic blog scraping failed: {str(e)}")
+            logger.error(f"Generic blog scraping failed for {url}: {e}")
+            return []
     
     def _extract_company_name(self, url: str) -> str:
         """Extract company name from URL domain."""
@@ -465,125 +446,199 @@ class AsyncWebScraper:
         
         return None
     
-    async def _scrape_single_article(self, url: str) -> Optional[Dict]:
-        """Scrape content from a single article page."""
+    async def _fetch_page_content(self, url: str, min_content_length: int = 100) -> Optional[str]:
+        """Unified page content fetching with session.get fallback to curl."""
         try:
+            # First try: Use session.get
+            logger.debug(f"Attempting to fetch {url} with session.get")
             async with self.session.get(url) as response:
-                if response.status != 200:
-                    return None
+                if response.status == 200:
+                    html_content = await response.text()
+                    if html_content and len(html_content) >= min_content_length:
+                        logger.debug(f"Successfully fetched {url} with session.get ({len(html_content)} chars)")
+                        return html_content
+                    else:
+                        logger.warning(f"Session.get returned insufficient content for {url} ({len(html_content) if html_content else 0} chars)")
+                else:
+                    logger.warning(f"Session.get failed for {url} with status {response.status}")
+        except Exception as e:
+            logger.warning(f"Session.get failed for {url}: {e}")
+        
+        # Second try: Use curl as fallback
+        try:
+            logger.debug(f"Attempting to fetch {url} with curl fallback")
+            html_content = await self._fetch_with_curl(url)
+            if html_content and len(html_content) >= min_content_length:
+                logger.debug(f"Successfully fetched {url} with curl ({len(html_content)} chars)")
+                return html_content
+            else:
+                logger.warning(f"Curl fallback returned insufficient content for {url} ({len(html_content) if html_content else 0} chars)")
+        except Exception as e:
+            logger.warning(f"Curl fallback failed for {url}: {e}")
+        
+        logger.error(f"All fetching methods failed for {url}")
+        return None
+    
+    async def _fetch_with_curl(self, url: str) -> Optional[str]:
+        """Fetch page content using curl command."""
+        try:
+            # Get proxy arguments
+            proxy_args = self._get_curl_proxy_args()
+            
+            # Build curl command
+            cmd = [
+                "curl", "-L", "-s", "-S", "--compressed", "--max-time", "60",
+                "--retry", "3", "--retry-delay", "2",
+            ]
+            
+            # Add proxy arguments if configured
+            cmd.extend(proxy_args)
+            
+            # Add URL
+            cmd.append(url)
+            
+            logger.debug(f"Executing curl command: {' '.join(cmd[:10])}... {url}")
+            
+            # Execute curl command
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            if result.returncode == 0:
+                return result.stdout
+            else:
+                logger.error(f"Curl command failed with return code {result.returncode}: {result.stderr}")
+                return None
                 
-                html = await response.text()
-                soup = BeautifulSoup(html, 'html.parser')
+        except subprocess.TimeoutExpired:
+            logger.error(f"Curl command timed out for {url}")
+            return None
+        except Exception as e:
+            logger.error(f"Curl command failed for {url}: {e}")
+            return None
+    
+    async def _scrape_single_article(self, url: str) -> Optional[Dict]:
+        """Scrape content from a single article page using unified scraping logic."""
+        try:
+            # Try session.get first, fallback to curl if needed
+            html_content = await self._fetch_page_content(url)
+            if not html_content:
+                return None
+            
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Remove unwanted elements
+            for element in soup(['script', 'style', 'nav', 'footer', 'aside']):
+                element.decompose()
+            
+            # Find article content
+            content_element = None
+            selectors = [
+                # Modern websites (Wiz.io, etc.)
+                'article',
+                '[data-layout="content"]',
+                '.prose',
+                '.content',
+                '.article-content',
                 
-                # Remove unwanted elements
-                for element in soup(['script', 'style', 'nav', 'footer', 'aside']):
-                    element.decompose()
+                # Traditional selectors
+                '.post-content',
+                '.entry-content',
+                '.article-content',
+                'main main',
+                '[itemprop="articleBody"]',
+                '.blog-post-content',
                 
-                # Find article content
-                content_element = None
-                selectors = [
-                    # Modern websites (Wiz.io, etc.)
-                    'article',
-                    '[data-layout="content"]',
-                    '.prose',
-                    '.content',
-                    '.article-content',
-                    
-                    # Traditional selectors
-                    '.post-content',
-                    '.entry-content',
-                    '.article-content',
-                    'main main',
-                    '[itemprop="articleBody"]',
-                    '.blog-post-content',
-                    
-                    # Additional fallbacks
-                    '.post-body',
-                    '.entry-body',
-                    '.story-content',
-                    '[role="main"] article',
-                    'section[class*="content"]'
-                ]
-                
-                for selector in selectors:
-                    element = soup.select_one(selector)
-                    if element and len(element.get_text(strip=True)) > 50:
-                        content_element = element
-                        # logger.debug(f"Found content element: {content_element}")
-                        break
-                
-                # If no specific content found, try to find the largest text block
-                if not content_element:
-                    content_element = self._find_largest_text_block(soup)
-                    logger.debug(f"Found largest text block: {content_element}")
-                
-                if not content_element:
-                    return None
-                
-                # Extract content
-                content = self._clean_text(content_element.get_text(separator=' ', strip=True))
-                # logger.debug(f"after clean text content: {content}")
-                
-                # Extract title - try multiple selectors for different site structures
-                title = None
-                title_selectors = [
-                    'h1',  # Most common
-                    'h2',  # Some sites use h2 for main title
-                    'h3',  # Wiz.io uses h3 for article titles
-                    'title',  # Fallback to page title
-                    '.article-title',
-                    '.post-title',
-                    '.entry-title',
-                    '[class*="title"]'
-                ]
-                
-                # Try to find the best title by looking for the most specific one
-                best_title = None
-                best_score = 0
-                logger.info(f"Trying to find the best title from {url}")
-                for selector in title_selectors:
-                    titles = soup.select(selector)
-                    logger.debug(f"Found {len(titles)} titles with selector: {selector}")
+                # Additional fallbacks
+                '.post-body',
+                '.entry-body',
+                '.story-content',
+                '[role="main"] article',
+                'section[class*="content"]'
+            ]
+            
+            for selector in selectors:
+                element = soup.select_one(selector)
+                if element and len(element.get_text(strip=True)) > 50:
+                    content_element = element
+                    # logger.debug(f"Found content element: {content_element}")
+                    break
+            
+            # If no specific content found, try to find the largest text block
+            if not content_element:
+                content_element = self._find_largest_text_block(soup)
+                logger.debug(f"Found largest text block: {content_element}")
+            
+            if not content_element:
+                return None
+            
+            # Extract content
+            content = self._clean_text(content_element.get_text(separator=' ', strip=True))
+            # logger.debug(f"after clean text content: {content}")
+            
+            # Extract title - try multiple selectors for different site structures
+            title = None
+            title_selectors = [
+                'h1',  # Most common
+                'h2',  # Some sites use h2 for main title
+                'h3',  # Wiz.io uses h3 for article titles
+                'title',  # Fallback to page title
+                '.article-title',
+                '.post-title',
+                '.entry-title',
+                '[class*="title"]'
+            ]
+            
+            # Try to find the best title by looking for the most specific one
+            best_title = None
+            best_score = 0
+            logger.info(f"Trying to find the best title from {url}")
+            for selector in title_selectors:
+                titles = soup.select(selector)
+                logger.debug(f"Found {len(titles)} titles with selector: {selector}")
 
-                    for title_elem in titles:
-                        title_text = title_elem.get_text(strip=True)
-                        if title_text and len(title_text) > 10:  # Must be substantial
-                            # Score based on specificity and position
-                            score = 0
-                            if selector == 'h1':
-                                score += 10
-                            elif selector == 'h2':
-                                score += 8
-                            elif selector == 'h3':
-                                score += 6
-                            elif selector == 'title':
-                                score += 4
-                            else:
-                                score += 2
-                            
-                            # logger.debug(f"Found title: {title_text}, selector: {selector}, score: {score}, best_score: {best_score}")
-                            if score > best_score:
-                                best_score = score
-                                best_title = title_elem
-                
-                title_text = best_title.get_text(strip=True) if best_title else "Untitled"
-                
-                # Extract publish date if possible
-                date_el = soup.find('time') or soup.find('span', class_=re.compile('date', re.I))
-                publish_date = None
-                if date_el:
-                    date_text = date_el.get('datetime') or date_el.get_text()
-                    try:
-                        publish_date = datetime.fromisoformat(date_text.replace('Z', '+00:00'))
-                    except (ValueError, TypeError):
-                        pass
-                
-                return {
-                    'url': url,
-                    'title': title_text,
-                    'content': content,
-                    'publish_date': publish_date,
-                }
+                for title_elem in titles:
+                    title_text = title_elem.get_text(strip=True)
+                    if title_text and len(title_text) > 10:  # Must be substantial
+                        # Score based on specificity and position
+                        score = 0
+                        if selector == 'h1':
+                            score += 10
+                        elif selector == 'h2':
+                            score += 8
+                        elif selector == 'h3':
+                            score += 6
+                        elif selector == 'title':
+                            score += 4
+                        else:
+                            score += 2
+                        
+                        # logger.debug(f"Found title: {title_text}, selector: {selector}, score: {score}, best_score: {best_score}")
+                        if score > best_score:
+                            best_score = score
+                            best_title = title_elem
+            
+            title_text = best_title.get_text(strip=True) if best_title else "Untitled"
+            
+            # Extract publish date if possible
+            date_el = soup.find('time') or soup.find('span', class_=re.compile('date', re.I))
+            publish_date = None
+            if date_el:
+                date_text = date_el.get('datetime') or date_el.get_text()
+                try:
+                    publish_date = datetime.fromisoformat(date_text.replace('Z', '+00:00'))
+                except (ValueError, TypeError):
+                    pass
+            
+            return {
+                'url': url,
+                'title': title_text,
+                'content': content,
+                'publish_date': publish_date,
+            }
                 
         except Exception:
             return None
@@ -618,3 +673,369 @@ class AsyncWebScraper:
         """Check if URL is cached."""
         key = self._generate_cache_key(url)
         return key in self._cache and (datetime.now() - self._cache[key].get('timestamp', datetime.now())).seconds < self.settings.cache_ttl_minutes * 60
+    
+    async def _scrape_with_scira_api(self, url: str, max_articles: int) -> List[Article]:
+        """Scrape using Scira.ai API for Aqua Security."""
+        try:
+            # Create a prompt to get recent articles from Aqua Security
+            prompt = self._create_scira_prompt(url, max_articles)
+            
+            # Prepare API request with headers similar to requests
+            headers = {
+                "Content-Type": "application/json",
+                "x-api-key": self.settings.scira_api_key,
+                "User-Agent": "python-requests/2.31.0",  # Match requests library
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br",  # Support Brotli encoding
+                "Connection": "keep-alive"
+            }
+            
+            payload = {
+                "messages": [{
+                    "role": "user",
+                    "content": prompt
+                }]
+            }
+            
+            logger.info(f"Using Scira.ai API to scrape {url}")
+            
+            # Create a separate session for Scira.ai API to avoid conflicts
+            timeout = aiohttp.ClientTimeout(total=60)
+            async with aiohttp.ClientSession(timeout=timeout) as api_session:
+                async with api_session.post(
+                    self.settings.scira_api_url,
+                    headers=headers,
+                    json=payload
+                ) as response:
+                    logger.info(f"Scira.ai API response status: {response.status}")
+                    logger.info(f"Scira.ai API response headers: {dict(response.headers)}")
+                    
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"Scira.ai API error response: {error_text}")
+                        raise WebScrapingError(f"Scira.ai API error: HTTP {response.status} - {error_text}")
+                    
+                    data = await response.json()
+                    articles_text = data.get("text", "")
+                    
+                    if not articles_text:
+                        logger.warning("No content returned from Scira.ai API")
+                        return []
+                    
+                    # Parse the response to extract articles
+                    articles = self._parse_scira_response(articles_text, url)
+                    
+                    logger.info(f"Successfully scraped {len(articles)} articles using Scira.ai API")
+                    return articles[:max_articles]
+                
+        except Exception as e:
+            logger.error(f"Scira.ai API scraping failed: {e}")
+            raise WebScrapingError(f"Scira.ai API scraping failed: {str(e)}")
+    
+    def _create_scira_prompt(self, url: str, max_articles: int) -> str:
+        """Create a prompt for Scira.ai API to get recent articles."""
+        return f"Find {max_articles} recent articles from {url}. Return as JSON array with title, url, content fields."
+    
+    def _parse_scira_response(self, response_text: str, base_url: str) -> List[Article]:
+        """Parse Scira.ai API response into Article objects."""
+        articles = []
+        
+        try:
+            # Try to extract JSON from the response
+            # Look for JSON array in the response
+            json_start = response_text.find('[')
+            json_end = response_text.rfind(']') + 1
+            
+            if json_start != -1 and json_end > json_start:
+                json_str = response_text[json_start:json_end]
+                articles_data = json.loads(json_str)
+                
+                for article_data in articles_data:
+                    try:
+                        # Extract company name from URL
+                        company_name = self._extract_company_name(base_url)
+                        
+                        # Parse publish date if available
+                        publish_date = None
+                        if article_data.get('publish_date'):
+                            try:
+                                publish_date = datetime.strptime(article_data['publish_date'], '%Y-%m-%d')
+                            except ValueError:
+                                pass
+                        
+                        article = Article(
+                            url=article_data.get('url', ''),
+                            title=article_data.get('title', ''),
+                            content=article_data.get('content', ''),
+                            company_name=company_name,
+                            author=article_data.get('author'),
+                            publish_date=publish_date,
+                            word_count=len(article_data.get('content', '').split())
+                        )
+                        articles.append(article)
+                        
+                    except Exception as e:
+                        logger.warning(f"Failed to parse article data: {e}")
+                        continue
+                        
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON from Scira.ai response: {e}")
+            # Fallback: try to extract basic information from text
+            articles = self._parse_scira_fallback(response_text, base_url)
+        except Exception as e:
+            logger.error(f"Error parsing Scira.ai response: {e}")
+            
+        return articles
+    
+    def _parse_scira_fallback(self, response_text: str, base_url: str) -> List[Article]:
+        """Fallback parsing when JSON parsing fails."""
+        articles = []
+        
+        # Try to extract article information using regex patterns
+        # This is a basic fallback - in practice, the API should return proper JSON
+        
+        # Look for article titles and URLs in the text
+        title_pattern = r'Title[:\s]+(.+?)(?:\n|$)'
+        url_pattern = r'URL[:\s]+(https?://[^\s]+)'
+        
+        titles = re.findall(title_pattern, response_text, re.IGNORECASE | re.MULTILINE)
+        urls = re.findall(url_pattern, response_text, re.IGNORECASE | re.MULTILINE)
+        
+        # Create basic articles from extracted information
+        for i, title in enumerate(titles):
+            url = urls[i] if i < len(urls) else base_url
+            company_name = self._extract_company_name(base_url)
+            
+            article = Article(
+                url=url,
+                title=title.strip(),
+                content="Content not available in fallback parsing",
+                company_name=company_name,
+                author=None,
+                publish_date=None,
+                word_count=0
+            )
+            articles.append(article)
+            
+        return articles
+    
+    async def _scrape_with_curl(self, url: str, max_articles: int) -> List[Article]:
+        """Scrape using curl command as fallback method."""
+        try:
+            logger.info(f"Using curl to scrape {url}")
+            
+            # Get proxy settings
+            proxy_args = self._get_curl_proxy_args()
+            
+            # Build curl command
+            curl_cmd = [
+                "curl",
+                "-L",  # Follow redirects
+                "-s",  # Silent mode
+                "-S",  # Show errors
+                "--compressed",  # Support compression
+                "--max-time", "60",  # 60 second timeout
+                "--retry", "3",  # Retry 3 times
+                "--retry-delay", "2"  # 2 second delay between retries
+            ]
+            
+            # Add proxy if configured
+            if proxy_args:
+                curl_cmd.extend(proxy_args)
+            
+            # Add URL
+            curl_cmd.append(url)
+            
+            logger.debug(f"Executing curl command: {' '.join(curl_cmd)}")
+            
+            # Execute curl command
+            result = subprocess.run(
+                curl_cmd,
+                capture_output=True,
+                text=True,
+                timeout=120  # 2 minute timeout
+            )
+            
+            if result.returncode != 0:
+                error_msg = f"Curl command failed with return code {result.returncode}"
+                if result.stderr:
+                    error_msg += f": {result.stderr}"
+                raise WebScrapingError(error_msg)
+            
+            html_content = result.stdout
+            # logger.debug(f"Curl returned HTML content: {html_content}")
+            if not html_content:
+                raise WebScrapingError("Curl returned empty content")
+            
+            # Parse HTML content
+            articles = await self._parse_html_content(html_content, url, max_articles)
+            
+            logger.info(f"Successfully scraped {len(articles)} articles using curl.articles: {articles}")
+            return articles
+            
+        except subprocess.TimeoutExpired:
+            logger.error("Curl command timed out")
+            raise WebScrapingError("Curl command timed out")
+        except FileNotFoundError:
+            logger.error("Curl command not found. Please install curl.")
+            raise WebScrapingError("Curl command not found. Please install curl.")
+        except Exception as e:
+            logger.error(f"Curl scraping failed: {e}")
+            raise WebScrapingError(f"Curl scraping failed: {str(e)}")
+    
+    def _get_curl_proxy_args(self) -> List[str]:
+        """Get curl proxy arguments based on settings."""
+        proxy_args = []
+        
+        # Check settings first
+        if self.settings.enable_proxy and self.settings.proxy_url:
+            proxy_url = self.settings.proxy_url
+            if self.settings.proxy_username and self.settings.proxy_password:
+                # Extract protocol and host:port from proxy_url
+                if proxy_url.startswith(('http://', 'https://')):
+                    protocol = proxy_url.split('://')[0]
+                    host_port = proxy_url.split('://')[1]
+                    proxy_args.extend([
+                        "--proxy", f"{protocol}://{self.settings.proxy_username}:{self.settings.proxy_password}@{host_port}"
+                    ])
+                else:
+                    proxy_args.extend(["--proxy", proxy_url])
+            else:
+                proxy_args.extend(["--proxy", proxy_url])
+        else:
+            # Check environment variables
+            http_proxy = os.getenv('http_proxy') or os.getenv('HTTP_PROXY')
+            https_proxy = os.getenv('https_proxy') or os.getenv('HTTPS_PROXY')
+            
+            if http_proxy:
+                proxy_args.extend(["--proxy", http_proxy])
+            elif https_proxy:
+                proxy_args.extend(["--proxy", https_proxy])
+        
+        return proxy_args
+    
+    async def _parse_html_content(self, html_content: str, base_url: str, max_articles: int) -> List[Article]:
+        """Parse HTML content to extract articles using unified parsing logic."""
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            company_name = self._extract_company_name(base_url)
+            
+            # Use the unified article extraction logic (curl method - no full content scraping)
+            articles = await self._extract_articles_from_html(soup, base_url, max_articles, company_name, scrape_full_content=True)
+            
+            # If no articles found, try to extract from page content
+            if not articles:
+                logger.warning("No article links found, attempting to extract from page content")
+                articles = self._extract_articles_from_content(soup, base_url, max_articles)
+            
+            return articles
+            
+        except Exception as e:
+            logger.error(f"Failed to parse HTML content: {e}")
+            raise WebScrapingError(f"Failed to parse HTML content: {str(e)}")
+    
+    async def _extract_articles_from_html(self, soup: BeautifulSoup, base_url: str, max_articles: int, company_name: str, scrape_full_content: bool = True) -> List[Article]:
+        """Unified method to extract articles from HTML content."""
+        articles = []
+        
+        try:
+            # Find article links using the existing logic
+            article_links = self._find_article_links(soup, base_url)
+            logger.info(f"Found {len(article_links)} article links,article_links: {article_links}")
+            
+            # Process each article link
+            for link_url in article_links[:max_articles]:
+                try:
+                    if scrape_full_content:
+                        # This is called from _scrape_generic_blog - scrape full content
+                        article_data = await self._scrape_single_article(link_url)
+                        
+                        if article_data:
+                            article = Article(
+                                url=article_data['url'],
+                                title=article_data['title'],
+                                content=article_data['content'],
+                                company_name=company_name,
+                                author=article_data.get('author'),
+                                publish_date=article_data.get('publish_date'),
+                                word_count=len(article_data['content'].split())
+                            )
+                            articles.append(article)
+                    else:
+                        # This is called from curl method - extract basic info only
+                        # Parse the link URL to get title from the page
+                        title = self._extract_title_from_url(link_url, soup)
+                        
+                        article = Article(
+                            url=link_url,
+                            title=title or "Untitled Article",
+                            content="Content not available - use curl to fetch individual articles",
+                            company_name=company_name,
+                            author=None,
+                            publish_date=None,
+                            word_count=0
+                        )
+                        articles.append(article)
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to process article link {link_url}: {e}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Failed to extract articles from HTML: {e}")
+            
+        return articles
+    
+    def _extract_title_from_url(self, url: str, soup: BeautifulSoup) -> str:
+        """Extract title for a URL from the page content."""
+        try:
+            # Try to find a link with this URL and get its text
+            link = soup.find('a', href=url)
+            if link:
+                return link.get_text(strip=True)
+            
+            # Try to find by partial URL match
+            for link in soup.find_all('a', href=True):
+                if url in link.get('href', '') or link.get('href', '') in url:
+                    return link.get_text(strip=True)
+                    
+        except Exception as e:
+            logger.debug(f"Failed to extract title for {url}: {e}")
+            
+        return None
+    
+    def _extract_articles_from_content(self, soup: BeautifulSoup, base_url: str, max_articles: int) -> List[Article]:
+        """Extract articles from page content when no clear article links are found."""
+        articles = []
+        company_name = self._extract_company_name(base_url)
+        
+        try:
+            # Look for headings that might be article titles
+            headings = soup.find_all(['h1', 'h2', 'h3', 'h4'])
+            
+            for heading in headings[:max_articles]:
+                title = heading.get_text(strip=True)
+                if len(title) < 10:  # Skip short titles
+                    continue
+                
+                # Try to find a link near this heading
+                article_url = base_url
+                link = heading.find('a', href=True)
+                if link:
+                    article_url = urljoin(base_url, link.get('href', ''))
+                
+                article = Article(
+                    url=article_url,
+                    title=title,
+                    content="Content not available - use curl to fetch individual articles",
+                    company_name=company_name,
+                    author=None,
+                    publish_date=None,
+                    word_count=0
+                )
+                articles.append(article)
+                
+        except Exception as e:
+            logger.warning(f"Failed to extract articles from content: {e}")
+        
+        return articles

@@ -112,6 +112,17 @@ class Settings(BaseSettings):
         ]
     )
     
+    # Proxy Configuration
+    proxy_url: Optional[str] = Field(default=None, description="Proxy URL (e.g., http://proxy.example.com:8080)")
+    proxy_username: Optional[str] = Field(default=None, description="Proxy username (optional)")
+    proxy_password: Optional[str] = Field(default=None, description="Proxy password (optional)")
+    enable_proxy: bool = Field(default=False, description="Enable proxy for web scraping")
+    
+    # Scira.ai API Configuration
+    scira_api_key: Optional[str] = Field(default=None, description="Scira.ai API key for web scraping")
+    scira_api_url: str = Field(default="https://api.scira.ai/api/search", description="Scira.ai API endpoint")
+    enable_scira_api: bool = Field(default=False, description="Enable Scira.ai API for web scraping")
+    
     # TTS Configuration
     minimaxi_api_key: Optional[str] = Field(default=None, description="Minimaxi API key for text-to-speech")
     minimaxi_group_id: Optional[str] = Field(default=None, description="Minimaxi Group ID for API access")
