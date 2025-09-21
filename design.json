@@ -1,121 +1,171 @@
+
 {
-  "designSystem": {
-    "name": "Vocality Design System",
-    "description": "Based on the Vocality homepage screenshot, this system captures the visual elements for consistent replication.",
-    "colors": {
-      "brand": {
-        "primary": "#000000",
-        "secondary": "#FF6600"
+  "name": "Podcasto Design System",
+  "version": "1.0.0",
+  "description": "A design system tokenized from the Podcasto app UI mockups. This system defines colors, typography, spacing, and component styles for consistent UI development.",
+  "colors": {
+    "background": {
+      "light": {
+        "value": "#E9E3FF",
+        "description": "Primary light background with a lavender tint."
       },
-      "neutral": {
-        "white": "#FFFFFF",
-        "black": "#000000",
-        "gray": "#666666"
+      "dark": {
+        "value": "#121316",
+        "description": "Primary dark background, a near-black charcoal."
       },
-      "accents": {
-        "blue": "#007BFF",
-        "green": "#28A745",
-        "red": "#DC3545",
-        "yellow": "#FFC107"
+      "darkElevated": {
+        "value": "#191A1F",
+        "description": "Elevated surface color for dark mode, like the bottom navigation."
       }
     },
-    "typography": {
-      "fontFamily": {
-        "primary": "'Helvetica Neue', Arial, sans-serif"
+    "text": {
+      "primaryLight": {
+        "value": "#FFFFFF",
+        "description": "Primary text color for use on dark backgrounds."
       },
-      "sizes": {
-        "h1": {
-          "fontSize": "48px",
-          "fontWeight": "700",
-          "lineHeight": "1.2"
-        },
-        "h2": {
-          "fontSize": "36px",
-          "fontWeight": "600",
-          "lineHeight": "1.3"
-        },
-        "body": {
-          "fontSize": "16px",
-          "fontWeight": "400",
-          "lineHeight": "1.5"
-        },
-        "button": {
-          "fontSize": "16px",
-          "fontWeight": "600",
-          "lineHeight": "1.5"
-        },
-        "nav": {
-          "fontSize": "14px",
-          "fontWeight": "500",
-          "lineHeight": "1.4"
-        }
+      "primaryDark": {
+        "value": "#0F1013",
+        "description": "Primary text color for use on light backgrounds."
+      },
+      "secondaryLight": {
+        "value": "#BFC1C5",
+        "description": "Secondary, less prominent text on dark backgrounds."
+      },
+      "secondaryDark": {
+        "value": "#4A5568",
+        "description": "Secondary, less prominent text on light backgrounds."
       }
     },
-    "spacing": {
-      "baseUnit": "8px",
-      "scale": {
-        "xxs": "4px",
-        "xs": "8px",
-        "sm": "16px",
-        "md": "24px",
-        "lg": "32px",
-        "xl": "48px",
-        "xxl": "64px"
+    "accent": {
+      "primary": {
+        "value": "#8B5CF6",
+        "description": "Primary accent color, used in the microphone icon."
+      },
+      "secondary": {
+        "value": "#FDE68A",
+        "description": "Secondary accent, a warm yellow, used in the microphone icon."
       }
     },
-    "components": {
-      "button": {
-        "primary": {
-          "backgroundColor": "#FF6600",
-          "color": "#FFFFFF",
-          "padding": "12px 24px",
-          "borderRadius": "4px",
-          "fontSize": "16px",
-          "fontWeight": "600"
-        },
-        "secondary": {
-          "backgroundColor": "transparent",
-          "color": "#000000",
-          "padding": "12px 24px",
-          "border": "1px solid #000000",
-          "borderRadius": "4px",
-          "fontSize": "16px",
-          "fontWeight": "600"
-        }
+    "gradients": {
+      "banner": {
+        "value": "linear-gradient(90deg, #7CC5FF, #79F0E0)",
+        "description": "Gradient for the main 'Discover' banner."
       },
-      "navbar": {
-        "backgroundColor": "transparent",
-        "color": "#000000",
-        "padding": "16px 0",
-        "height": "60px",
-        "itemSpacing": "24px"
+      "card1": {
+        "value": "linear-gradient(135deg, #F0B3A1, #CAA0F7)",
+        "description": "Gradient for the first podcast card."
       },
-      "card": {
+      "card2": {
+        "value": "linear-gradient(135deg, #B3D2FF, #E0B1E1)",
+        "description": "Gradient for the second podcast card."
+      },
+      "card3": {
+        "value": "linear-gradient(135deg, #B7F0CE, #F2B2A8)",
+        "description": "Gradient for the third podcast card."
+      }
+    },
+    "ui": {
+      "glass": {
+        "value": "rgba(255, 255, 255, 0.08)",
+        "description": "Background color for glassmorphism effect."
+      }
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": {
+        "value": "'Inter', 'Manrope', 'Poppins', sans-serif",
+        "description": "Primary font family for the UI. Use web-safe fallbacks."
+      }
+    },
+    "fontWeight": {
+      "regular": 400,
+      "semibold": 600,
+      "bold": 700,
+      "extrabold": 800
+    },
+    "fontSize": {
+      "xs": "0.625rem",
+      "sm": "0.875rem",
+      "base": "1rem",
+      "lg": "1.25rem",
+      "xl": "1.5rem",
+      "2xl": "2.5rem",
+      "3xl": "3.25rem"
+    }
+  },
+  "spacing": {
+    "baseUnit": "4px",
+    "scale": {
+      "xs": "4px",   
+      "sm": "8px",   
+      "md": "12px",  
+      "lg": "16px",  
+      "xl": "24px",  
+      "2xl": "32px",
+      "3xl": "40px" 
+    }
+  },
+  "borderRadius": {
+    "sm": "4px",
+    "md": "8px",
+    "lg": "12px",
+    "xl": "16px",
+    "2xl": "24px",
+    "3xl": "32px",
+    "full": "9999px"
+  },
+  "effects": {
+    "shadow": {
+      "soft": {
+        "value": "0 10px 25px rgba(0, 0, 0, 0.12), 0 6px 10px rgba(0, 0, 0, 0.06)",
+        "description": "A soft, deep shadow for elevating main phone mockups."
+      }
+    },
+    "blur": {
+      "glass": {
+        "value": "backdrop-filter: blur(8px)",
+        "description": "Backdrop blur for the glassmorphism effect."
+      }
+    }
+  },
+  "components": {
+    "button": {
+      "primary": {
+        "backgroundColor": "{colors.text.primaryDark.value}",
+        "textColor": "{colors.text.primaryLight.value}",
+        "borderRadius": "{borderRadius.full}",
+        "padding": "{spacing.lg} {spacing.xl}",
+        "fontWeight": "{typography.fontWeight.semibold}"
+      }
+    },
+    "card": {
+      "onboarding": {
         "backgroundColor": "#FFFFFF",
-        "borderRadius": "8px",
-        "boxShadow": "0 2px 4px rgba(0,0,0,0.1)",
-        "padding": "16px",
-        "minWidth": "200px",
-        "minHeight": "200px"
+        "borderRadius": "{borderRadius.3xl}",
+        "padding": "{spacing.2xl}"
       },
-      "progressBar": {
-        "backgroundColor": "#E0E0E0",
-        "progressColor": "#FF6600",
-        "height": "4px",
-        "borderRadius": "2px"
+      "podcastItem": {
+        "borderRadius": "{borderRadius.xl}",
+        "padding": "{spacing.sm}",
+        "textColor": "{colors.text.primaryDark.value}",
+        "imagePlaceholder": {
+          "borderRadius": "{borderRadius.md}",
+          "aspectRatio": "16/9"
+        }
+      },
+      "glass": {
+        "backgroundColor": "{colors.ui.glass.value}",
+        "borderRadius": "{borderRadius.xl}",
+        "padding": "{spacing.md}",
+        "backdropFilter": "{effects.blur.glass.value}"
       }
     },
-    "layout": {
-      "grid": {
-        "columns": "12",
-        "gutter": "24px",
-        "containerMaxWidth": "1200px"
-      },
-      "alignment": {
-        "text": "center",
-        "buttons": "center"
-      },
-      "symmetry": "balanced"
+    "bottomNavBar": {
+      "backgroundColor": "{colors.background.darkElevated.value}",
+      "borderRadius": "{borderRadius.2xl}",
+      "padding": "{spacing.sm} {spacing.lg}",
+      "textColor": "{colors.text.secondaryLight.value}"
     }
   }
 }

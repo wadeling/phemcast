@@ -83,7 +83,7 @@ async function handleSubmit(event) {
         
         const result = await response.json();
         
-        if (result.task_id) {
+        if (result.task_ids && result.task_ids.length > 0) {
             updateProgress(30, 'Task created successfully, monitoring progress...');
             loadingElement.style.display = 'none';
             
@@ -93,11 +93,11 @@ async function handleSubmit(event) {
             resultElement.innerHTML = `
                 <div class="result success">
                     <strong>✅ Quick Test Started!</strong><br>
-                    Task ID: ${result.task_id}<br>
+                    Task ID: ${result.task_ids[0]}<br>
                     <small>Processing ${articleCount} article(s) from ${urlCount} blog(s)</small><br>
                     <small>Expected completion: 2-5 minutes</small><br><br>
                     <div id="status"></div>
-                    <button onclick="checkStatus('${result.task_id}')" class="status-button">
+                    <button onclick="checkStatus('${result.task_ids[0]}')" class="status-button">
                         🔍 Check Status
                     </button>
                     <button onclick="location.reload()" class="status-button" style="background: #6c757d; margin-left: 10px;">

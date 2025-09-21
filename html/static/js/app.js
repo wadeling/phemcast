@@ -39,16 +39,17 @@ function checkAuthStatus() {
 
 // Initialize form with default values
 function initializeForm() {
-    const urlsTextarea = document.getElementById('urls');
     const maxArticlesSelect = document.getElementById('max_articles');
-    
-    // Set default URL if textarea is empty
-    if (!urlsTextarea.value.trim()) {
-        urlsTextarea.value = 'https://wiz.io/blog';
-    }
     
     // Set default max articles to 1
     maxArticlesSelect.value = '1';
+    
+    // Ensure at least one company is selected
+    const companyCheckboxes = document.querySelectorAll('input[name="companies"]');
+    const checkedCompanies = Array.from(companyCheckboxes).filter(cb => cb.checked);
+    if (checkedCompanies.length === 0 && companyCheckboxes.length > 0) {
+        companyCheckboxes[0].checked = true; // Select first company by default
+    }
     
     console.log('Form initialized with default values');
 }
@@ -64,13 +65,21 @@ async function handleSubmit(event) {
     
     isSubmitting = true;
     
+    // Get selected companies
+    const selectedCompanies = Array.from(document.querySelectorAll('input[name="companies"]:checked'))
+        .map(cb => cb.value);
+    
+    if (selectedCompanies.length === 0) {
+        showAlertModal(window.i18n.t('common.error'), 'Please select at least one company');
+        isSubmitting = false;
+        return;
+    }
+    
     const formData = new FormData();
-    formData.append('urls', document.getElementById('urls').value);
+    formData.append('companies', JSON.stringify(selectedCompanies));
     const email = document.getElementById('email').value;
     if (email) formData.append('email', email);
     formData.append('max_articles', document.getElementById('max_articles').value);
-    
-    
     
     try {
         const response = await fetch('/api/generate-report-form', {
@@ -81,13 +90,13 @@ async function handleSubmit(event) {
         
         const result = await response.json();
         
-        if (result.task_id) {
-            currentTaskId = result.task_id; // Set current task ID for WebSocket monitoring
+        if (result.task_ids && result.task_ids.length > 0) {
+            currentTaskId = result.task_ids[0]; // Set current task ID for WebSocket monitoring
             
             // 显示任务提交成功提示
             showAlertModal(window.i18n.t('message.success'), window.i18n.t('message.task_submitted'));
             
-            console.log('Task started successfully:', result.task_id);
+            console.log('Task started successfully:', result.task_ids[0]);
         } else {
             throw new Error('No task ID returned');
         }
@@ -598,27 +607,12 @@ function debounce(func, wait) {
 
 // Enhanced form validation
 function validateForm() {
-    const urls = document.getElementById('urls').value.trim();
+    const selectedCompanies = Array.from(document.querySelectorAll('input[name="companies"]:checked'))
+        .map(cb => cb.value);
     const email = document.getElementById('email').value.trim();
     
-    if (!urls) {
-        showAlertModal(window.i18n.t('common.error'), window.i18n.t('validation.urls_required'));
-        return false;
-    }
-    
-    // Basic URL validation
-    const urlList = urls.split('\n').filter(url => url.trim());
-    const invalidUrls = urlList.filter(url => {
-        try {
-            new URL(url.trim());
-            return false;
-        } catch {
-            return true;
-        }
-    });
-    
-    if (invalidUrls.length > 0) {
-        showAlertModal(window.i18n.t('common.error'), `${window.i18n.t('validation.invalid_url')}: ${invalidUrls.join(', ')}`);
+    if (selectedCompanies.length === 0) {
+        showAlertModal(window.i18n.t('common.error'), 'Please select at least one company');
         return false;
     }
     

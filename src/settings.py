@@ -136,6 +136,27 @@ class Settings(BaseSettings):
     # Reporting
     output_dir: str = Field(default="reports", description="Report output directory")
     max_report_size_mb: int = Field(default=10, description="Maximum report size in MB")
+    
+    # Company URL mapping
+    company_urls: dict = Field(
+        default={
+            "wiz": {"url": "https://www.wiz.io/feed/rss.xml", "rss": True},
+            "aquasec": {"url": "https://www.aquasec.com/feed/", "rss": True},
+            "dropzone": {"url": "https://dropzone.ai/blog", "rss": False},
+            "datadog": {"url": "https://securitylabs.datadoghq.com/articles/", "rss": False},
+            "dynatrace": {"url": "https://www.dynatrace.com/news/blog/", "rss": False},
+            "illumio": {"url": "https://www.illumio.com/resources/zero-trust-segmentation-blog", "rss": False},
+            "protectai": {"url": "https://protectai.com/blog", "rss": False},
+            "paloaltonetworks": {"url": "https://www.paloaltonetworks.com/blog/", "rss": False},# Palo Alto Networks 的rss feed更新不及时，所以暂时使用官网
+            "sysdig": {"url": "https://sysdig.com/blog", "rss": False},
+            "snowflake": {"url": "https://www.snowflake.com/en/blog/", "rss": False},
+            "securitiai": {"url": "https://securiti.ai/blog/", "rss": False},
+            "sentinelone": {"url": "https://www.sentinelone.com/blog/", "rss": False},
+            "simbian": {"url": "https://simbian.ai/blog", "rss": False},
+            "prophetsecurity": {"url": "https://www.prophetsecurity.ai/blog", "rss": False}
+        },
+        description="Mapping of company names to their blog URLs"
+    )
 
     @validator("output_dir")
     def validate_output_dir(cls, v):

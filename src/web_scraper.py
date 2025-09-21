@@ -17,6 +17,7 @@ import hashlib
 import logging
 from models import Article
 from settings import Settings
+from crawl4ai import AsyncWebCrawler
 
 logger = logging.getLogger(__name__)
 class WebScrapingError(Exception):
@@ -52,7 +53,7 @@ class AsyncWebScraper:
             await self.session.close()
     
     async def scrape_blog_articles(
-        self, urls: List[str], max_articles: int = 5
+        self, urls: List[str], max_articles: int = 5, pre_fetched_articles: List[Dict] = None
     ) -> Tuple[List[Article], List[str]]:
         """
         Scrape articles from multiple blog URLs with rate limiting and deduplication.
@@ -68,30 +69,46 @@ class AsyncWebScraper:
         errors = []
         seen_urls = set()
         
-        # Process URLs with delay between requests
-        for i, url in enumerate(urls):
-            if i > 0:
-                await asyncio.sleep(self.settings.request_delay)
+        # If we have pre-fetched articles, use them first
+        if pre_fetched_articles:
+            logger.info(f"Using {len(pre_fetched_articles)} pre-fetched articles")
+            for article_data in pre_fetched_articles:
+                if article_data.get("url") and article_data["url"] not in seen_urls:
+                    article = Article(
+                        title=article_data.get("title", ""),
+                        url=article_data.get("url", ""),
+                        published=article_data.get("published", ""),
+                        summary=article_data.get("summary", ""),
+                        content=article_data.get("content", "")
+                    )
+                    seen_urls.add(article.url)
+                    all_articles.append(article)
+        
+        # Process URLs with delay between requests (only if we need more articles)
+        if len(all_articles) < max_articles * len(urls):
+            for i, url in enumerate(urls):
+                if i > 0:
+                    await asyncio.sleep(self.settings.request_delay)
             
-            try:
-                url_articles = await self._scrape_single_blog(url, max_articles)
-                
-                # Deduplicate articles from this URL
-                unique_articles = []
-                for article in url_articles:
-                    if article.url not in seen_urls:
-                        seen_urls.add(article.url)
-                        unique_articles.append(article)
-                        if len(unique_articles) >= max_articles:
-                            break  # Stop when we have enough unique articles
-                
-                all_articles.extend(unique_articles)
-                
-                if len(unique_articles) < len(url_articles):
-                    print(f"⚠️  Removed {len(url_articles) - len(unique_articles)} duplicate articles from {url}")
-                
-            except Exception as e:
-                errors.append(f"Error scraping {url}: {str(e)}")
+                try:
+                    url_articles = await self._scrape_single_blog(url, max_articles)
+                    
+                    # Deduplicate articles from this URL
+                    unique_articles = []
+                    for article in url_articles:
+                        if article.url not in seen_urls:
+                            seen_urls.add(article.url)
+                            unique_articles.append(article)
+                            if len(unique_articles) >= max_articles:
+                                break  # Stop when we have enough unique articles
+                    
+                    all_articles.extend(unique_articles)
+                    
+                    if len(unique_articles) < len(url_articles):
+                        print(f"⚠️  Removed {len(url_articles) - len(unique_articles)} duplicate articles from {url}")
+                    
+                except Exception as e:
+                    errors.append(f"Error scraping {url}: {str(e)}")
         
         # Final deduplication across all URLs
         final_articles = []
@@ -520,6 +537,52 @@ class AsyncWebScraper:
             logger.error(f"Curl command failed for {url}: {e}")
             return None
     
+    
+    async def _scrape_single_article_markdown(self, url: str) -> Optional[Dict]:
+        """Scrape content from a single article page using crawl4ai for markdown conversion."""
+        temp_file = None
+        try:
+            # First, fetch HTML content using existing method
+            html_content = await self._fetch_page_content(url)
+            if not html_content:
+                logger.warning(f"Failed to fetch HTML content for {url}")
+                return None
+            
+            # Create a temporary file to store HTML content
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+                f.write(html_content)
+                temp_file = f.name
+            
+            logger.info(f"Converting HTML file to markdown for {url},temp_file: {temp_file}")
+
+            # Use crawl4ai to convert the temporary HTML file to markdown
+            async with AsyncWebCrawler(verbose=False) as crawler:
+                result = await crawler.arun(
+                    url=f"file://{temp_file}",
+                    bypass_cache=True
+                )
+                
+                if result.success and result.markdown:
+                    return {
+                        'url': url,
+                        'content': result.markdown,
+                    }
+                else:
+                    logger.warning(f"crawl4ai failed to convert HTML file for {url}: {result.error_message if hasattr(result, 'error_message') else 'Unknown error'}")
+                    return None
+                
+        except Exception as e:
+            logger.warning(f"Error scraping {url} with crawl4ai: {e}")
+            return None
+        finally:
+            # Clean up temporary file
+            if temp_file and os.path.exists(temp_file):
+                try:
+                    os.unlink(temp_file)
+                except Exception as e:
+                    logger.warning(f"Failed to delete temporary file {temp_file}: {e}")
+
+
     async def _scrape_single_article(self, url: str) -> Optional[Dict]:
         """Scrape content from a single article page using unified scraping logic."""
         try:

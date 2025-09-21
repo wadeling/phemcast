@@ -163,6 +163,7 @@ class AgentState(TypedDict, total=False):
     urls: List[str]
     max_articles: int
     email_recipients: List[str]
+    company_configs: List[Dict]
     
     # Processing state
     articles: List[Article]

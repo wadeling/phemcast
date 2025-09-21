@@ -57,14 +57,14 @@ class WebScrapingTool(BaseTool):
         super().__init__(settings=settings)
         self.settings = settings
     
-    async def _arun(self, urls: List[str], max_articles: int = 5) -> tuple:
+    async def _arun(self, urls: List[str], max_articles: int = 5, pre_fetched_articles: List[Dict] = None) -> tuple:
         """Async run web scraping."""
         if not urls:
             return [], ["No URLs provided"]
         
         try:
             async with AsyncWebScraper(self.settings) as scraper:
-                articles, errors = await scraper.scrape_blog_articles(urls, max_articles)
+                articles, errors = await scraper.scrape_blog_articles(urls, max_articles, pre_fetched_articles)
                 return articles, errors
         except Exception as e:
             return [], [f"Web scraping failed: {str(e)}"]
@@ -75,6 +75,7 @@ class WebScrapingTool(BaseTool):
             # Extract arguments from different possible formats
             urls = None
             max_articles = 5
+            pre_fetched_articles = None
             logger.info(f"WebScrapingTool._run: args: {args}, kwargs: {kwargs}")
 
             # Case 1: Arguments passed as positional args
@@ -82,12 +83,16 @@ class WebScrapingTool(BaseTool):
                 urls = args[0]
                 if len(args) >= 2:
                     max_articles = args[1]
+                if len(args) >= 3:
+                    pre_fetched_articles = args[2]
             
             # Case 2: Arguments passed as keyword args
             if 'urls' in kwargs:
                 urls = kwargs['urls']
             if 'max_articles' in kwargs:
                 max_articles = kwargs['max_articles']
+            if 'pre_fetched_articles' in kwargs:
+                pre_fetched_articles = kwargs['pre_fetched_articles']
             
             # Ensure urls is a list
             if not isinstance(urls, list):
@@ -100,12 +105,12 @@ class WebScrapingTool(BaseTool):
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     def run_async():
-                        return asyncio.run(self._arun(urls, max_articles))
+                        return asyncio.run(self._arun(urls, max_articles, pre_fetched_articles))
                     future = executor.submit(run_async)
                     return future.result()
             except RuntimeError:
                 # No event loop running, use asyncio.run
-                return asyncio.run(self._arun(urls, max_articles))
+                return asyncio.run(self._arun(urls, max_articles, pre_fetched_articles))
             
         except Exception as e:
             # Log the error for debugging
@@ -113,6 +118,153 @@ class WebScrapingTool(BaseTool):
             print(f"Args: {args}")
             print(f"Kwargs: {kwargs}")
             raise e
+
+
+class ArticleExtractionTool(BaseTool):
+    """Tool for extracting article URLs and titles from markdown content using LLM."""
+    
+    name: str = "extract_articles_from_markdown"
+    description: str = """Extract article URLs and titles from markdown content using AI.
+    
+    Args:
+        markdown_content: Markdown content from a blog website
+        blog_url: Base URL of the blog website
+        max_articles: Maximum number of articles to extract
+    
+    Returns:
+        List of dictionaries containing article information (title, url, published, summary)"""
+    
+    return_direct: bool = False
+    settings: Settings
+    llm: Optional[ChatOpenAI] = None
+    
+    def __init__(self, settings: Settings):
+        # Initialize with required settings
+        super().__init__(settings=settings)
+        self.llm = ChatOpenAI(
+            openai_api_key=settings.openai_api_key,
+            openai_api_base=settings.openai_base_url,
+            model=settings.openai_model,
+            temperature=0.1,
+            max_tokens=20000,
+            http_client=None,  # Use default async client
+            http_async_client=None  # Ensure async client is used
+        )
+    
+    async def _arun(self, markdown_content: str, blog_url: str, max_articles: int) -> List[Dict]:
+        """Async extraction of articles from markdown content."""
+        try:
+            from langchain_core.messages import HumanMessage
+            import json
+            
+            # Create prompt for article extraction
+            prompt = f"""Please analyze the following markdown content from a blog website and extract the {max_articles} most recent article URLs and titles.
+
+Blog URL: {blog_url}
+Markdown Content:
+{markdown_content[:32000]}  # Limit content to avoid token limits
+
+Please return the articles in the following JSON format:
+{{
+    "articles": [
+        {{
+            "title": "Article Title",
+            "url": "Full Article URL",
+            "published": "Publication Date (if available)",
+            "summary": "Brief summary (if available)"
+        }}
+    ]
+}}
+
+Requirements:
+1. Extract only actual blog articles (not navigation, footer, or other page elements)
+2. Ensure URLs are absolute (include domain if relative)
+3. Prioritize more recent articles if publication dates are available
+4. Return exactly {max_articles} articles or fewer if not enough are found
+5. If no articles are found, return an empty articles array
+
+Focus on finding article links that lead to individual blog posts, not category pages or other site sections."""
+
+            # Call LLM
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            
+            # Parse response
+            try:
+                result = json.loads(response.content)
+                articles = result.get("articles", [])
+                
+                # Ensure URLs are absolute
+                for article in articles:
+                    url = article.get("url", "")
+                    if url and not url.startswith("http"):
+                        if url.startswith("/"):
+                            article["url"] = blog_url.rstrip("/") + url
+                        else:
+                            article["url"] = blog_url.rstrip("/") + "/" + url
+                
+                logger.info(f"ArticleExtractionTool extracted {len(articles)} articles from {blog_url}")
+                return articles
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse LLM response as JSON: {e}")
+                logger.error(f"LLM response: {response.content}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"ArticleExtractionTool failed: {e}")
+            return []
+    
+    def _run(self, *args, **kwargs) -> List[Dict]:
+        """Sync run wrapper that handles various input formats from LangChain."""
+        try:
+            # Extract arguments from different possible formats
+            markdown_content = None
+            blog_url = None
+            max_articles = 5
+            
+            # Case 1: Arguments passed as positional args
+            if len(args) >= 1:
+                markdown_content = args[0]
+                if len(args) >= 2:
+                    blog_url = args[1]
+                if len(args) >= 3:
+                    max_articles = args[2]
+            
+            # Case 2: Arguments passed as keyword args
+            if 'markdown_content' in kwargs:
+                markdown_content = kwargs['markdown_content']
+            if 'blog_url' in kwargs:
+                blog_url = kwargs['blog_url']
+            if 'max_articles' in kwargs:
+                max_articles = kwargs['max_articles']
+            
+            # Validate required arguments
+            if not markdown_content:
+                logger.error("ArticleExtractionTool: markdown_content is required")
+                return []
+            if not blog_url:
+                logger.error("ArticleExtractionTool: blog_url is required")
+                return []
+            
+            # Check if we're already in an event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an event loop, run in a separate thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    def run_async():
+                        return asyncio.run(self._arun(markdown_content, blog_url, max_articles))
+                    future = executor.submit(run_async)
+                    return future.result()
+            except RuntimeError:
+                # No event loop running, use asyncio.run
+                return asyncio.run(self._arun(markdown_content, blog_url, max_articles))
+            
+        except Exception as e:
+            logger.error(f"Error in ArticleExtractionTool._run: {e}")
+            logger.error(f"Args: {args}")
+            logger.error(f"Kwargs: {kwargs}")
+            return []
 
 
 class AIContentAnalysisTool(BaseTool):
@@ -447,19 +599,20 @@ class ReportGenerationTool(BaseTool):
 
 # Direct @tool functions for LangGraph integration
 @tool
-def scrape_articles(urls: List[str], max_articles: int = 5) -> Dict:
+def scrape_articles(urls: List[str], max_articles: int = 5, pre_fetched_articles: List[Dict] = None) -> Dict:
     """Scrape articles from given blog URLs.
     
     Args:
         urls: List of blog URLs to scrape
         max_articles: Maximum articles per blog (default: 5)
+        pre_fetched_articles: Pre-fetched articles to use first
     
     Returns:
         Dict with 'articles' (list) and 'errors' (list)
     """
     settings = Settings()
     scraper = WebScrapingTool(settings)
-    articles, errors = scraper.run(urls, max_articles)
+    articles, errors = scraper.run(urls, max_articles, pre_fetched_articles)
     
     return {
         "articles": [article.model_dump() for article in articles],

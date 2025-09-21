@@ -15,6 +15,7 @@ aiohttp>=3.9.0
 beautifulsoup4>=4.12.0
 requests>=2.31.0
 feedparser>=6.0.0
+crawl4ai==0.7.4
 
 # Web framework and API
 fastapi>=0.104.0

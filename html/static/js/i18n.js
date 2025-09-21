@@ -19,7 +19,8 @@ class I18n {
                 // Hero Section
                 'hero.badge': 'AI-Powered Podcast Generator',
                 'hero.title': 'Summon the voice of industry intelligence',
-                'hero.subtitle': 'PHEMCAST transforms enterprise blogs into compelling podcasts. Our AI automatically gathers public voices, analyzes insights, and summons them into powerful audio narratives that command attention.',
+                'hero.subtitle': 'AI-Powered Industry Podcast Generator',
+                'hero.description': 'Summon the voice of industry intelligence. Transform enterprise blogs into compelling podcasts with our advanced AI technology.',
                 
                 // Features
                 'features.title': 'Powerful Features',
@@ -36,17 +37,18 @@ class I18n {
                 'features.ethical.desc': 'Ethical content gathering with built-in rate limiting and respectful data practices',
                 
                 // Form
-                'form.title': 'Create Your Podcast',
-                'form.subtitle': 'Enter company blog URLs to generate a professional podcast',
+                'form.title': 'Summon Your Industry Podcast',
+                'form.subtitle': 'Configure your podcast parameters and let PHEMCAST gather the voices',
+                'form.companies.label': 'Select Enterprise Voice Sources',
                 'form.urls.label': 'Company Blog URLs',
                 'form.urls.placeholder': 'Enter one URL per line...',
-                'form.email.label': 'Email for Delivery (Optional)',
-                'form.email.placeholder': 'your@email.com',
-                'form.articles.label': 'Articles per Blog',
+                'form.email.label': 'Podcast Delivery Email',
+                'form.email.placeholder': 'your.email@company.com',
+                'form.articles.label': 'Voice Depth per Source',
                 'form.articles.placeholder': 'Select number of articles',
-                'form.submit': 'Summon Voice',
+                'form.submit': 'Summon Podcast',
                 'form.submitting': 'Summoning...',
-                'form.schedule': 'Schedule Recurring Summons',
+                'form.schedule': 'Schedule Auto-Summon',
                 
                 // Task Status
                 'task.status.processing': 'Processing',
@@ -169,7 +171,8 @@ class I18n {
                 // Hero Section
                 'hero.badge': 'AI驱动的播客生成器',
                 'hero.title': '召唤行业智能之声',
-                'hero.subtitle': 'PHEMCAST将企业博客转化为引人入胜的播客。我们的AI自动收集公共声音，分析洞察，并将它们召唤成强大的音频叙事，吸引注意力。',
+                'hero.subtitle': 'AI驱动的行业播客生成器',
+                'hero.description': '召唤行业智能之声。将企业博客转化为引人入胜的播客，运用我们先进的AI技术。',
                 
                 // Features
                 'features.title': '强大功能',
@@ -186,17 +189,18 @@ class I18n {
                 'features.ethical.desc': '道德内容收集，内置速率限制和尊重数据实践',
                 
                 // Form
-                'form.title': '创建您的播客',
-                'form.subtitle': '输入公司博客URL以生成专业播客',
+                'form.title': '召唤您的行业播客',
+                'form.subtitle': '配置您的播客参数，让PHEMCAST收集声音',
+                'form.companies.label': '选择企业声音来源',
                 'form.urls.label': '公司博客URL',
                 'form.urls.placeholder': '每行输入一个URL...',
-                'form.email.label': '投递邮箱（可选）',
-                'form.email.placeholder': 'your@email.com',
-                'form.articles.label': '每博客文章数',
+                'form.email.label': '播客投递邮箱',
+                'form.email.placeholder': 'your.email@company.com',
+                'form.articles.label': '每个来源的声音深度',
                 'form.articles.placeholder': '选择文章数量',
-                'form.submit': '召唤声音',
+                'form.submit': '召唤播客',
                 'form.submitting': '召唤中...',
-                'form.schedule': '设置定期召唤',
+                'form.schedule': '设置自动召唤',
                 
                 // Task Status
                 'task.status.processing': '处理中',
@@ -387,17 +391,14 @@ class LanguageSwitcher {
     }
     
     createSwitcher() {
-        const switcher = document.createElement('div');
-        switcher.className = 'language-switcher';
-        switcher.innerHTML = `
-            <button id="lang-en" class="lang-btn ${window.i18n.getCurrentLanguage() === 'en' ? 'active' : ''}">EN</button>
-            <button id="lang-zh" class="lang-btn ${window.i18n.getCurrentLanguage() === 'zh' ? 'active' : ''}">中文</button>
-        `;
+        // Language switcher is now in HTML, just update the active state
+        const currentLang = window.i18n.getCurrentLanguage();
+        const enBtn = document.getElementById('lang-en');
+        const zhBtn = document.getElementById('lang-zh');
         
-        // Insert into header
-        const headerActions = document.querySelector('.header-actions');
-        if (headerActions) {
-            headerActions.insertBefore(switcher, headerActions.firstChild);
+        if (enBtn && zhBtn) {
+            enBtn.classList.toggle('active', currentLang === 'en');
+            zhBtn.classList.toggle('active', currentLang === 'zh');
         }
     }
     

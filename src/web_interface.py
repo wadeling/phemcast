@@ -370,16 +370,16 @@ async def logout_force():
 
 @app.post("/api/generate-report-form")
 async def generate_report_form(
-    urls: str = Form(...),
+    companies: str = Form(...),
     email: str = Form(None),
     max_articles: int = Form(5),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Generate report from form data (with multi-line URL input).
+    Generate report from form data (with company selection).
     
     Args:
-        urls: Multi-line string with URLs
+        companies: JSON string with selected company names
         email: Email for delivery
         max_articles: Max articles per blog
     
@@ -387,39 +387,68 @@ async def generate_report_form(
         Task ID
     """
     logger.info("=== FORM SUBMISSION RECEIVED ===")
-    logger.info(f"Generating report for {urls} with email {email} and max_articles {max_articles}")
+    logger.info(f"Generating report for companies {companies} with email {email} and max_articles {max_articles}")
     try:
-        # Parse URLs from form
-        url_list = [url.strip() for url in urls.split('\n') if url.strip()]
+        # Parse companies from JSON string
+        import json
+        selected_companies = json.loads(companies)
+        logger.debug(f"selected_companies: {selected_companies}")
         
-        if not url_list:
-            raise HTTPException(status_code=400, detail="No valid URLs found")
+        if not selected_companies:
+            raise HTTPException(status_code=400, detail="No companies selected")
         
-        task_id = str(uuid.uuid4())
+        # Convert company names to URLs using settings
+        settings = load_settings()
+        company_configs = []
+        for company in selected_companies:
+            if company in settings.company_urls:
+                company_config = settings.company_urls[company]
+                company_configs.append({
+                    "name": company,
+                    "url": company_config["url"],
+                    "rss": company_config["rss"]
+                })
+            else:
+                logger.warning(f"Unknown company: {company}")
         
-        # Use asyncio to run in background
-        asyncio.create_task(
-            _process_report_task(
-                task_id, 
-                url_list, 
-                email, 
-                max_articles,
-                current_user.username
+        if not company_configs:
+            raise HTTPException(status_code=400, detail="No valid company URLs found")
+        
+        # Create separate tasks for each company
+        task_ids = []
+        for company_config in company_configs:
+            task_id = str(uuid.uuid4())
+            task_ids.append(task_id)
+            
+            # Use asyncio to run in background
+            asyncio.create_task(
+                _process_report_task(
+                    task_id, 
+                    [company_config], 
+                    email, 
+                    max_articles,
+                    current_user.username
+                )
             )
-        )
         
-        running_tasks[task_id] = {
-            "status": "processing",
-            "created_at": datetime.now().isoformat(),
-            "urls": url_list,
-            "email": email,
-            "max_articles": max_articles
-        }
+        # Store task information for each company
+        for i, task_id in enumerate(task_ids):
+            running_tasks[task_id] = {
+                "status": "processing",
+                "created_at": datetime.now().isoformat(),
+                "company": company_configs[i]["name"],
+                "url": company_configs[i]["url"],
+                "rss": company_configs[i]["rss"],
+                "email": email,
+                "max_articles": max_articles
+            }
         
-        return {"task_id": task_id, "status": "processing"}
+        return {"task_ids": task_ids, "status": "processing", "companies": selected_companies}
         
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid companies format")
     except Exception as e:
-        logger.error(f"Failed to process form submission")
+        logger.error(f"Failed to process form submission: {e}")
         raise HTTPException(status_code=500, detail="Failed to process form submission")
 
 
@@ -719,7 +748,7 @@ async def cancel_task(task_id: str):
 
 async def _process_report_task(
     task_id: str, 
-    urls: List[str], 
+    company_configs: List[dict], 
     email: Optional[str], 
     max_articles: int,
     user_name: str,
@@ -754,9 +783,12 @@ async def _process_report_task(
             "message": "Task started processing"
         })
         
-        # Create and run agent
+        # Extract URLs and company configs for workflow
+        urls = [config["url"] for config in company_configs]
+        
+        # Create and run agent with company configurations
         agent = create_agent()
-        result = await agent.run_workflow(task_id,urls, [email] if email else None, max_articles)
+        result = await agent.run_workflow(task_id, urls, [email] if email else None, max_articles, company_configs)
         
         # Calculate completion time and duration
         completed_at = datetime.utcnow()
@@ -1036,4 +1068,6 @@ async def toggle_scheduled_task(
     except Exception as e:
         logger.error(f"Failed to toggle scheduled task: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
 

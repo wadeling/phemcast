@@ -45,6 +45,12 @@ build-backend:
 	docker build --platform ${platform} -f build/backend/Dockerfile -t ${registryname}/${reponame}/backend:${imagetag} .
 	@echo "✅ Backend image built successfully: ${registryname}/${reponame}/backend:${imagetag} (${platform})"
 
+build-backend-base:
+	@echo "📦 Building backend base Docker image for platform: ${platform}..."
+	docker build --platform ${platform} -f build/backend/Dockerfile.base -t ${registryname}/${reponame}/backend-base:${imagetag} .
+	@echo "✅ Backend base image built successfully: ${registryname}/${reponame}/backend-base:${imagetag} (${platform})"
+
+
 # Build both images
 build-all: build-frontend build-backend
 	@echo ""

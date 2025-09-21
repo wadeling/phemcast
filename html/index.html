@@ -15,21 +15,13 @@
                 <div class="logo-icon">🎙️</div>
                 <span class="logo-text">PHEMCAST</span>
             </div>
-            <nav class="nav">
-                <a href="#" class="nav-link" data-i18n="nav.features">Features</a>
-                <a href="#" class="nav-link" data-i18n="nav.about">About</a>
-                <a href="#" class="nav-link" data-i18n="nav.documentation">Documentation</a>
-                <a href="#" class="nav-link" data-i18n="nav.support">Support</a>
-            </nav>
             <div class="header-actions">
+                <div class="language-switcher">
+                    <button id="lang-en" class="lang-btn active">EN</button>
+                    <button id="lang-zh" class="lang-btn">中文</button>
+                </div>
                 <span id="user-info" class="user-info" style="display: none;">
                     <span class="welcome-text"><span data-i18n="header.welcome">Welcome,</span> <span id="username" class="username"></span></span>
-                    <button id="task-status-btn" class="task-status-btn" onclick="showTaskStatusModal(true)" title="Task Status">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-                        </svg>
-                        <span data-i18n="header.tasks">Tasks</span>
-                    </button>
                     <a href="#" onclick="logout()" class="logout-link" data-i18n="header.logout">Logout</a>
                 </span>
                 <div id="websocket-status" class="websocket-status" style="display: none;">
@@ -41,87 +33,168 @@
 
     <!-- Main Content -->
     <main class="main">
-        <div class="hero">
-            <div class="hero-badge" data-i18n="hero.badge">AI-Powered Podcast Generator</div>
-            <h1 class="hero-title" data-i18n="hero.title">Summon the voice of industry intelligence</h1>
-            <p class="hero-subtitle" data-i18n="hero.subtitle">PHEMCAST transforms enterprise blogs into compelling podcasts. Our AI automatically gathers public voices, analyzes insights, and summons them into powerful audio narratives that command attention.</p>
-        </div>
-        
-
-        
-        <!-- Podcast Generation Form -->
-        <div class="form-container">
-            <div class="form-header">
-                <h2 data-i18n="form.title">Summon Your Industry Podcast</h2>
-                <p data-i18n="form.subtitle">Configure your podcast parameters and let PHEMCAST gather the voices</p>
+        <!-- Left Section - Brand and Hero -->
+        <section class="left-section">
+            <div class="hero-content">
+                <h1 class="hero-title">PHEMCAST</h1>
+                <p class="hero-subtitle" data-i18n="hero.subtitle">AI-Powered Industry Podcast Generator</p>
+                <div class="hero-description">
+                    <p data-i18n="hero.description">Summon the voice of industry intelligence. Transform enterprise blogs into compelling podcasts with our advanced AI technology.</p>
+                </div>
             </div>
-            
-            <form id="reportForm" class="report-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="urls" data-i18n="form.urls.label">Enterprise Voice Sources</label>
-                        <textarea id="urls" name="urls" data-i18n="form.urls.placeholder" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com&#10;https://engineering.linkedin.com" required>https://wiz.io/blog</textarea>
-                        <small class="form-hint">🎯 PHEMCAST will gather public voices from these enterprise blogs</small>
-                    </div>
+        </section>
+
+        <!-- Right Section - Two Columns -->
+        <section class="right-section">
+            <!-- Left Column - Company Selection -->
+            <div class="left-column">
+                <div class="column-header">
+                    <h2 data-i18n="form.companies.label">Select Enterprise Voice Sources</h2>
+                    <p data-i18n="form.subtitle">Choose your industry voices</p>
                 </div>
                 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="email" data-i18n="form.email.label">Podcast Delivery Email</label>
-                        <input type="email" id="email" name="email" data-i18n="form.email.placeholder" placeholder="your.email@company.com">
-                        <small class="form-hint">📧 Your summoned podcast will be delivered here (optional)</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="max_articles" data-i18n="form.articles.label">Voice Depth per Source</label>
-                        <select id="max_articles" name="max_articles">
-                            <option value="1" selected>1 voice (Quick summon)</option>
-                            <option value="3">3 voices</option>
-                            <option value="5">5 voices</option>
-                            <option value="10">10 voices</option>
-                            <option value="20">20 voices</option>
-                        </select>
-                        <small class="form-hint">⚡ Start with 1 voice for rapid podcast generation</small>
+                <div class="scroll-container">
+                    <div class="company-selection">
+                        <div class="company-options" id="companyOptions">
+                            <div class="company-option" data-company="wiz">
+                                <input type="checkbox" id="company-wiz" name="companies" value="wiz" checked>
+                                <label for="company-wiz" class="company-label">
+                                    <img src="/static/images/wiz.svg" alt="Wiz" class="company-icon">
+                                    <span class="company-name">Wiz</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="aquasec">
+                                <input type="checkbox" id="company-aquasec" name="companies" value="aquasec">
+                                <label for="company-aquasec" class="company-label">
+                                    <img src="/static/images/aquasec.svg" alt="Aqua Security" class="company-icon">
+                                    <span class="company-name">Aqua Security</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="dropzone">
+                                <input type="checkbox" id="company-dropzone" name="companies" value="dropzone">
+                                <label for="company-dropzone" class="company-label">
+                                    <img src="/static/images/dropazone.ai.svg" alt="Dropzone AI" class="company-icon">
+                                    <span class="company-name">Dropzone AI</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="datadog">
+                                <input type="checkbox" id="company-datadog" name="companies" value="datadog">
+                                <label for="company-datadog" class="company-label">
+                                    <img src="/static/images/datadog.svg" alt="Datadog" class="company-icon">
+                                    <span class="company-name">Datadog</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="dynatrace">
+                                <input type="checkbox" id="company-dynatrace" name="companies" value="dynatrace">
+                                <label for="company-dynatrace" class="company-label">
+                                    <img src="/static/images/dynatrace.svg" alt="Dynatrace" class="company-icon">
+                                    <span class="company-name">Dynatrace</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="illumio">
+                                <input type="checkbox" id="company-illumio" name="companies" value="illumio">
+                                <label for="company-illumio" class="company-label">
+                                    <img src="/static/images/illumio.svg" alt="Illumio" class="company-icon">
+                                    <span class="company-name">Illumio</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="paloaltonetworks">
+                                <input type="checkbox" id="company-paloaltonetworks" name="companies" value="paloaltonetworks">
+                                <label for="company-paloaltonetworks" class="company-label">
+                                    <img src="/static/images/paloaltonetworks.svg" alt="Palo Alto Networks" class="company-icon">
+                                    <span class="company-name">Palo Alto Networks</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="prophetsecurity">
+                                <input type="checkbox" id="company-prophetsecurity" name="companies" value="prophetsecurity">
+                                <label for="company-prophetsecurity" class="company-label">
+                                    <img src="/static/images/prophetsecurity.png" alt="Prophet Security" class="company-icon">
+                                    <span class="company-name">Prophet Security</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="protectai">
+                                <input type="checkbox" id="company-protectai" name="companies" value="protectai">
+                                <label for="company-protectai" class="company-label">
+                                    <img src="/static/images/protectai.png" alt="Protect AI" class="company-icon">
+                                    <span class="company-name">Protect AI</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="securitiai">
+                                <input type="checkbox" id="company-securitiai" name="companies" value="securitiai">
+                                <label for="company-securitiai" class="company-label">
+                                    <img src="/static/images/securitiai.png" alt="Securiti AI" class="company-icon">
+                                    <span class="company-name">Securiti AI</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="sentinelone">
+                                <input type="checkbox" id="company-sentinelone" name="companies" value="sentinelone">
+                                <label for="company-sentinelone" class="company-label">
+                                    <img src="/static/images/sentinelone.png" alt="SentinelOne" class="company-icon">
+                                    <span class="company-name">SentinelOne</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="simbian">
+                                <input type="checkbox" id="company-simbian" name="companies" value="simbian">
+                                <label for="company-simbian" class="company-label">
+                                    <img src="/static/images/simbian.png" alt="Simbian" class="company-icon">
+                                    <span class="company-name">Simbian</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="snowflake">
+                                <input type="checkbox" id="company-snowflake" name="companies" value="snowflake">
+                                <label for="company-snowflake" class="company-label">
+                                    <img src="/static/images/snowflake.svg" alt="Snowflake" class="company-icon">
+                                    <span class="company-name">Snowflake</span>
+                                </label>
+                            </div>
+                            <div class="company-option" data-company="sysdig">
+                                <input type="checkbox" id="company-sysdig" name="companies" value="sysdig">
+                                <label for="company-sysdig" class="company-label">
+                                    <img src="/static/images/sysdig.svg" alt="Sysdig" class="company-icon">
+                                    <span class="company-name">Sysdig</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="form-actions">
-                    <button type="submit" class="cta-button primary">
+                    <button type="button" class="cta-button primary" onclick="generatePodcast()">
                         <span data-i18n="form.submit">Summon Podcast</span>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
                         </svg>
                     </button>
                     
                     <button type="button" class="cta-button secondary" onclick="openScheduledTasksModal()">
                         <span data-i18n="form.schedule">Schedule Auto-Summon</span>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                         </svg>
                     </button>
                 </div>
-            </form>
-        </div>
-        
-        <!-- Loading State -->
-        
-        
-        <!-- Podcast Library Section -->
-        <div class="task-cards-section">
-            <div class="section-header">
-                <h2 data-i18n="task.section.title">Your Summoned Podcasts</h2>
-                <p data-i18n="task.section.subtitle">Command your collection of industry intelligence podcasts</p>
             </div>
             
-            <div class="task-cards-container" id="taskCardsContainer">
-                <!-- Podcast cards will be dynamically generated here -->
-                <div class="no-tasks-message" id="noTasksMessage">
-                    <div class="no-tasks-icon">🎙️</div>
-                    <h3 data-i18n="task.no_podcasts.title">No podcasts summoned yet</h3>
-                    <p data-i18n="task.no_podcasts.desc">Summon your first industry podcast to see it appear here</p>
+            <!-- Right Column - Task Cards -->
+            <div class="right-column">
+                <div class="column-header">
+                    <h2 data-i18n="task.section.title">Your Summoned Podcasts</h2>
+                    <p data-i18n="task.section.subtitle">Industry intelligence podcasts</p>
+                </div>
+                
+                <div class="scroll-container">
+                    <div class="task-cards-container" id="taskCardsContainer">
+                        <!-- Podcast cards will be dynamically generated here -->
+                        <div class="no-tasks-message" id="noTasksMessage">
+                            <div class="no-tasks-icon">🎙️</div>
+                            <h3 data-i18n="task.no_podcasts.title">No podcasts summoned yet</h3>
+                            <p data-i18n="task.no_podcasts.desc">Summon your first industry podcast to see it appear here</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
+    </main>
         
         
         <!-- 定时任务管理弹窗 -->
@@ -181,44 +254,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Features Section -->
-        <div class="features-section">
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🎯</div>
-                    <h3 data-i18n="features.voice.title">Voice Gathering</h3>
-                    <p data-i18n="features.voice.desc">PHEMCAST automatically summons public voices from enterprise blogs and industry sources</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🧠</div>
-                    <h3 data-i18n="features.podcast.title">Intelligence Analysis</h3>
-                    <p data-i18n="features.podcast.desc">Advanced AI algorithms analyze and synthesize insights into compelling narratives</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🎙️</div>
-                    <h3 data-i18n="features.podcast.title">Podcast Crafting</h3>
-                    <p data-i18n="features.podcast.desc">Transform industry insights into professional-grade podcasts with natural voice synthesis</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3 data-i18n="features.rapid.title">Rapid Summoning</h3>
-                    <p data-i18n="features.rapid.desc">Generate industry podcasts in minutes, not hours, with our optimized processing pipeline</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔄</div>
-                    <h3 data-i18n="features.scheduling.title">Auto-Summon Scheduling</h3>
-                    <p data-i18n="features.scheduling.desc">Set up recurring podcast generation to stay ahead of industry trends automatically</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🛡️</div>
-                    <h3 data-i18n="features.ethical.title">Respectful Harvesting</h3>
-                    <p data-i18n="features.ethical.desc">Ethical content gathering with built-in rate limiting and respectful data practices</p>
-                </div>
-            </div>
-            
-
         </div>
     </main>
     
@@ -422,6 +457,37 @@
         
         function closeScheduledTasksModal() {
             document.getElementById('scheduledTasksModal').style.display = 'none';
+        }
+        
+        // Podcast Success Modal Functions
+        function showPodcastSuccessModal(taskId, companies) {
+            const modal = document.getElementById('podcastSuccessModal');
+            const taskIdElement = document.getElementById('successTaskId');
+            const companiesElement = document.getElementById('successCompanies');
+            
+            // 更新任务信息
+            taskIdElement.textContent = taskId;
+            companiesElement.textContent = companies.join(', ');
+            
+            // 显示弹窗
+            modal.style.display = 'block';
+            
+            // 添加键盘事件监听
+            document.addEventListener('keydown', handlePodcastSuccessKeydown);
+        }
+        
+        function closePodcastSuccessModal() {
+            const modal = document.getElementById('podcastSuccessModal');
+            modal.style.display = 'none';
+            
+            // 移除键盘事件监听
+            document.removeEventListener('keydown', handlePodcastSuccessKeydown);
+        }
+        
+        function handlePodcastSuccessKeydown(event) {
+            if (event.key === 'Escape') {
+                closePodcastSuccessModal();
+            }
         }
         
         // 设置定时任务表单
@@ -634,13 +700,71 @@
         
         // 点击弹窗外部关闭弹窗
         window.onclick = function(event) {
-            const modal = document.getElementById('scheduledTasksModal');
-            if (event.target === modal) {
+            const scheduledModal = document.getElementById('scheduledTasksModal');
+            const podcastSuccessModal = document.getElementById('podcastSuccessModal');
+            
+            if (event.target === scheduledModal) {
                 closeScheduledTasksModal();
+            } else if (event.target === podcastSuccessModal) {
+                closePodcastSuccessModal();
             }
         }
         
         // 音频播放器函数已移动到 app.js 中
+        
+        
+        // 生成播客功能
+        async function generatePodcast() {
+            const selectedCompanies = Array.from(document.querySelectorAll('input[name="companies"]:checked'))
+                .map(input => input.value);
+            
+            if (selectedCompanies.length === 0) {
+                alert('请至少选择一个公司');
+                return;
+            }
+            
+            // 使用默认值，因为当前UI没有这些输入框
+            const email = ''; // 可选字段
+            const maxArticles = 1; // 默认值
+            
+            // 检查认证状态
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('请先登录');
+                window.location.href = '/login';
+                return;
+            }
+            
+            try {
+                // 使用FormData格式提交，与app.js中的handleSubmit保持一致
+                const formData = new FormData();
+                formData.append('companies', JSON.stringify(selectedCompanies));
+                if (email) formData.append('email', email);
+                formData.append('max_articles', maxArticles.toString());
+                
+                const response = await fetch('/api/generate-report-form', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.task_ids && result.task_ids.length > 0) {
+                    // 显示任务提交成功弹窗
+                    showPodcastSuccessModal(result.task_ids[0], selectedCompanies);
+                    console.log('Task started successfully:', result.task_ids[0]);
+                } else {
+                    throw new Error('No task ID returned');
+                }
+            } catch (error) {
+                console.error('Task submission failed:', error);
+                alert('任务提交失败: ' + (error.message || '未知错误'));
+            }
+        }
+        
     </script>
 
     <!-- Task Status Modal -->
@@ -669,6 +793,67 @@
                 <p id="alertMessage">This is an alert message.</p>
                 <div style="text-align: center; margin-top: 20px;">
                     <button class="btn" onclick="closeAlertModal()">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Podcast Success Modal -->
+    <div id="podcastSuccessModal" class="modal" style="display: none;">
+        <div class="modal-content podcast-success-modal">
+            <div class="modal-header podcast-success-header">
+                <div class="success-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12l2 2 4-4"/>
+                        <circle cx="12" cy="12" r="10"/>
+                    </svg>
+                </div>
+                <h2>播客召唤成功！</h2>
+                <span class="close" onclick="closePodcastSuccessModal()">&times;</span>
+            </div>
+            <div class="modal-body podcast-success-body">
+                <div class="success-content">
+                    <div class="success-animation">
+                        <div class="pulse-ring"></div>
+                        <div class="pulse-ring delay-1"></div>
+                        <div class="pulse-ring delay-2"></div>
+                        <div class="microphone-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="success-message">
+                        <h3>🎙️ 播客正在生成中</h3>
+                        <p>您的行业智能播客已经开始制作，预计需要 2-5 分钟完成。</p>
+                        <div class="task-info">
+                            <div class="task-id">
+                                <span class="label">任务ID:</span>
+                                <span class="value" id="successTaskId">-</span>
+                            </div>
+                            <div class="selected-companies">
+                                <span class="label">选择公司:</span>
+                                <span class="value" id="successCompanies">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="success-actions">
+                    <button class="btn btn-primary" onclick="closePodcastSuccessModal()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                        继续召唤
+                    </button>
+                    <button class="btn btn-secondary" onclick="showTaskStatusModal(true)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 19c-5 0-7-2-7-7V6c0-5 2-7 7-7s7 2 7 7v6c0 5-2 7-7 7z"/>
+                            <path d="M9 9v6"/>
+                            <path d="M15 9v6"/>
+                        </svg>
+                        查看任务
+                    </button>
                 </div>
             </div>
         </div>
