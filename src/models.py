@@ -192,8 +192,7 @@ class ScheduledTask(BaseModel):
     id: Optional[str] = None
     task_name: str = Field(..., description="Task name for identification")
     user_name: str = Field(..., description="User who created the task")
-    urls: List[str] = Field(..., description="Company blog URLs to analyze")
-    email_recipients: List[str] = Field(default_factory=list, description="Email addresses for report delivery")
+    companies: List[str] = Field(..., description="Company names to analyze")
     max_articles: int = Field(default=5, ge=1, le=20, description="Articles per blog to analyze")
     
     # Schedule configuration
@@ -243,8 +242,7 @@ class ScheduledTaskCreate(BaseModel):
     """Model for creating a new scheduled task."""
     
     task_name: str = Field(..., description="Task name for identification")
-    urls: List[str] = Field(..., description="Company blog URLs to analyze")
-    email_recipients: List[str] = Field(default_factory=list, description="Email addresses for report delivery")
+    companies: List[str] = Field(..., description="Company names to analyze")
     max_articles: int = Field(default=5, ge=1, le=20, description="Articles per blog to analyze")
     
     # Schedule configuration
@@ -257,8 +255,7 @@ class ScheduledTaskUpdate(BaseModel):
     """Model for updating an existing scheduled task."""
     
     task_name: Optional[str] = Field(None, description="Task name for identification")
-    urls: Optional[List[str]] = Field(None, description="Company blog URLs to analyze")
-    email_recipients: Optional[List[str]] = Field(None, description="Email addresses for report delivery")
+    companies: Optional[List[str]] = Field(None, description="Company names to analyze")
     max_articles: Optional[int] = Field(None, ge=1, le=20, description="Articles per blog to analyze")
     
     # Schedule configuration

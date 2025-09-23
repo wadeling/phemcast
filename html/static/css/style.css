@@ -2009,3 +2009,623 @@ body {
         margin-left: 100px;
     }
 }
+
+/* User Settings Modal Styles */
+.user-settings-modal {
+    max-width: 400px;
+    width: 90%;
+    max-height: 80vh;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    animation: slideInUp 0.3s ease-out;
+}
+
+.user-settings-header {
+    background: #f8f9fa;
+    padding: 24px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-avatar {
+    width: 60px;
+    height: 60px;
+    background: #e9ecef;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.avatar-icon {
+    font-size: 24px;
+    color: #6c757d;
+}
+
+.user-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-phone {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.username-display {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+    line-height: 1.2;
+}
+
+.verified-icon {
+    width: 16px;
+    height: 16px;
+    background: #FF6600;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.user-name {
+    font-size: 14px;
+    color: #6c757d;
+    font-weight: 400;
+}
+
+.user-settings-body {
+    padding: 24px;
+}
+
+.settings-section {
+    margin-bottom: 0;
+}
+
+.settings-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.settings-item:last-child {
+    border-bottom: none;
+}
+
+.settings-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-icon {
+    font-size: 20px;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.settings-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.settings-description {
+    font-size: 13px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.settings-control {
+    flex-shrink: 0;
+    margin-left: 16px;
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+    cursor: pointer;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 28px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #28a745;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(22px);
+}
+
+.toggle-switch:hover .toggle-slider {
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+}
+
+.toggle-switch input:checked:hover + .toggle-slider {
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3);
+}
+
+.user-settings-footer {
+    padding: 20px 24px;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.btn-cancel {
+    background: rgba(255, 255, 255, 0.9);
+    color: #1a1a1a;
+    border: 2px solid #dee2e6;
+    backdrop-filter: blur(8px);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.5;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-cancel:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #FF6600, #FF8C42);
+    color: #FFFFFF;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.5;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(255, 102, 0, 0.3);
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 102, 0, 0.4);
+}
+
+.btn-save:active {
+    transform: translateY(0);
+}
+
+/* Clickable username */
+.username.clickable {
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.username.clickable:hover {
+    color: #FF6600;
+}
+
+/* Responsive adjustments for user settings */
+@media (max-width: 480px) {
+    .user-settings-modal {
+        width: 95%;
+        max-width: none;
+        margin: 20px;
+    }
+    
+    .user-settings-header {
+        padding: 20px;
+    }
+    
+    .user-settings-body {
+        padding: 20px;
+    }
+    
+    .user-settings-footer {
+        padding: 16px 20px;
+        flex-direction: column;
+    }
+    
+    .btn-cancel,
+    .btn-save {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .user-profile {
+        gap: 12px;
+    }
+    
+    .user-avatar {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .avatar-icon {
+        font-size: 20px;
+    }
+    
+    .username-display {
+        font-size: 16px;
+    }
+}
+
+/* Scheduled Task Modal Styles */
+.scheduled-task-modal {
+    max-width: 400px;
+    width: 90%;
+    max-height: 80vh;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    opacity: 0;
+    animation: modalFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.scheduled-task-modal .modal-header {
+    background: #f8f9fa;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.scheduled-task-modal .modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.scheduled-task-modal .close {
+    font-size: 24px;
+    font-weight: bold;
+    color: #6c757d;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.scheduled-task-modal .close:hover {
+    color: #dc3545;
+}
+
+.scheduled-task-modal .modal-body {
+    padding: 24px;
+    max-height: calc(80vh - 80px);
+    overflow-y: auto;
+}
+
+.scheduled-task-modal .form-group {
+    margin-bottom: 20px;
+}
+
+.scheduled-task-modal .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #1a1a1a;
+    font-size: 14px;
+}
+
+.scheduled-task-modal .form-group input,
+.scheduled-task-modal .form-group select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+    background: #ffffff;
+}
+
+.scheduled-task-modal .form-group input:focus,
+.scheduled-task-modal .form-group select:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.1);
+}
+
+.company-selection {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.company-checkbox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 1;
+    min-height: 50px;
+}
+
+.company-checkbox:hover {
+    border-color: #FF6600;
+    background: #fff8f5;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 102, 0, 0.15);
+}
+
+.company-checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.company-checkbox.checked {
+    background: linear-gradient(135deg, #FF6600, #FF8C42);
+    border-color: #FF6600;
+    box-shadow: 0 4px 12px rgba(255, 102, 0, 0.3);
+}
+
+.company-checkbox.checked::before {
+    content: '✓';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #FF6600;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 1;
+}
+
+.company-checkbox label {
+    margin: 0;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 500;
+    color: #1a1a1a;
+    text-align: center;
+    margin-top: 4px;
+    line-height: 1.2;
+}
+
+.modal-company-icon {
+    width: 45px;
+    height: 45px;
+    object-fit: contain;
+    filter: brightness(0.8);
+    transition: all 0.3s ease;
+}
+
+.company-checkbox:hover .modal-company-icon {
+    filter: brightness(0.6);
+    transform: scale(1.05);
+}
+
+.company-checkbox.checked .modal-company-icon {
+    filter: brightness(0) invert(1);
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #f1f3f4;
+}
+
+.btn-cancel {
+    background: rgba(255, 255, 255, 0.9);
+    color: #1a1a1a;
+    border: 2px solid #dee2e6;
+    backdrop-filter: blur(8px);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.5;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-cancel:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.btn-create {
+    background: linear-gradient(135deg, #FF6600, #FF8C42);
+    color: #FFFFFF;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.5;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(255, 102, 0, 0.3);
+}
+
+.btn-create:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 102, 0, 0.4);
+}
+
+.btn-create:active {
+    transform: translateY(0);
+}
+
+.task-list {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #f1f3f4;
+}
+
+.task-list h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+/* Responsive adjustments for scheduled task modal */
+@media (max-width: 480px) {
+    .scheduled-task-modal {
+        width: 95%;
+        max-width: none;
+        margin: 20px;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    
+    .scheduled-task-modal .modal-body {
+        padding: 20px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn-cancel,
+    .btn-create {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .company-selection {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    
+    .company-checkbox {
+        padding: 6px;
+        min-height: 40px;
+    }
+    
+    .modal-company-icon {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .company-checkbox label {
+        font-size: 9px;
+        margin-top: 2px;
+    }
+}

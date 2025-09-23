@@ -38,8 +38,7 @@ class ScheduledTask(Base):
     id = Column(String(50), primary_key=True, index=True)
     task_name = Column(String(255), nullable=False)
     user_name = Column(String(100), nullable=False, index=True)
-    urls = Column(Text, nullable=False)  # JSON string of URLs
-    email_recipients = Column(Text, nullable=True)  # JSON string of emails
+    companies = Column(Text, nullable=False)  # JSON string of company names
     max_articles = Column(Integer, nullable=False, default=5)
     
     # Schedule configuration
@@ -89,3 +88,14 @@ class TaskExecutionHistory(Base):
     
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class UserSettings(Base):
+    """User settings table for storing user preferences."""
+    __tablename__ = "user_settings"
+    
+    id = Column(String(50), primary_key=True, index=True)
+    username = Column(String(100), nullable=False, index=True, unique=True)
+    email_notifications = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

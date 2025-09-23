@@ -32,7 +32,7 @@ from typing import List
 from agent import create_agent
 from models import TaskStatus
 from database import init_db, get_async_db, record_task_execution
-from db_models import User
+from db_models import User, UserSettings
 from task_manager import task_manager
 from auth import (
     authenticate_user, create_user, verify_invite_code,
@@ -125,6 +125,19 @@ class RegisterRequest(BaseModel):
     email: str = Field(..., description="Email")
     password: str = Field(..., description="Password")
     invite_code: str = Field(..., description="Invite code")
+
+
+class UserSettingsRequest(BaseModel):
+    """User settings request."""
+    email_notifications: bool = Field(..., description="Enable email notifications")
+
+
+class UserSettingsResponse(BaseModel):
+    """User settings response."""
+    username: str = Field(..., description="Username")
+    email_notifications: bool = Field(..., description="Enable email notifications")
+    created_at: str = Field(..., description="Created at")
+    updated_at: str = Field(..., description="Updated at")
 
 
 # Initialize Python application
@@ -993,8 +1006,7 @@ async def create_scheduled_task(
     """Create a new scheduled task."""
     try:
         logger.debug(f"Received scheduled task creation request: {request.dict()}")
-        logger.debug(f"URLs in request: {request.urls}")
-        logger.debug(f"Email recipients in request: {request.email_recipients}")
+        logger.debug(f"Companies in request: {request.companies}")
         
         task_id = await task_manager.create_task(request.dict(), current_user.username)
         return {"task_id": task_id, "message": "Scheduled task created successfully"}
@@ -1068,6 +1080,116 @@ async def toggle_scheduled_task(
     except Exception as e:
         logger.error(f"Failed to toggle scheduled task: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/user-settings")
+async def get_user_settings(current_user: User = Depends(get_current_user)):
+    """Get user settings."""
+    try:
+        from sqlalchemy import text
+        
+        db = await get_async_db()
+        async with db as session:
+            # Get or create user settings
+            result = await session.execute(
+                text("""
+                    SELECT id, username, email_notifications, created_at, updated_at
+                    FROM user_settings 
+                    WHERE username = :username
+                """),
+                {"username": current_user.username}
+            )
+            row = result.fetchone()
+            
+            if not row:
+                # Create default settings for new user
+                import uuid
+                settings_id = str(uuid.uuid4())
+                await session.execute(
+                    text("""
+                        INSERT INTO user_settings (id, username, email_notifications, created_at, updated_at)
+                        VALUES (:id, :username, :email_notifications, :created_at, :updated_at)
+                    """),
+                    {
+                        "id": settings_id,
+                        "username": current_user.username,
+                        "email_notifications": True,
+                        "created_at": datetime.utcnow(),
+                        "updated_at": datetime.utcnow()
+                    }
+                )
+                await session.commit()
+                
+                # Return default settings
+                return UserSettingsResponse(
+                    username=current_user.username,
+                    email_notifications=True,
+                    created_at=datetime.utcnow().isoformat(),
+                    updated_at=datetime.utcnow().isoformat()
+                )
+            
+            return UserSettingsResponse(
+                username=row.username,
+                email_notifications=row.email_notifications,
+                created_at=row.created_at.isoformat(),
+                updated_at=row.updated_at.isoformat()
+            )
+            
+    except Exception as e:
+        logger.error(f"Failed to get user settings: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve user settings")
+
+
+@app.put("/api/user-settings")
+async def update_user_settings(
+    request: UserSettingsRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Update user settings."""
+    try:
+        from sqlalchemy import text
+        
+        db = await get_async_db()
+        async with db as session:
+            # Update user settings
+            result = await session.execute(
+                text("""
+                    UPDATE user_settings 
+                    SET email_notifications = :email_notifications, updated_at = :updated_at
+                    WHERE username = :username
+                """),
+                {
+                    "email_notifications": request.email_notifications,
+                    "updated_at": datetime.utcnow(),
+                    "username": current_user.username
+                }
+            )
+            
+            if result.rowcount == 0:
+                # Create settings if they don't exist
+                import uuid
+                settings_id = str(uuid.uuid4())
+                await session.execute(
+                    text("""
+                        INSERT INTO user_settings (id, username, email_notifications, created_at, updated_at)
+                        VALUES (:id, :username, :email_notifications, :created_at, :updated_at)
+                    """),
+                    {
+                        "id": settings_id,
+                        "username": current_user.username,
+                        "email_notifications": request.email_notifications,
+                        "created_at": datetime.utcnow(),
+                        "updated_at": datetime.utcnow()
+                    }
+                )
+            
+            await session.commit()
+            
+            return {"message": "User settings updated successfully"}
+            
+    except Exception as e:
+        logger.error(f"Failed to update user settings: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update user settings")
 
 
 

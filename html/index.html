@@ -21,7 +21,7 @@
                     <button id="lang-zh" class="lang-btn">中文</button>
                 </div>
                 <span id="user-info" class="user-info" style="display: none;">
-                    <span class="welcome-text"><span data-i18n="header.welcome">Welcome,</span> <span id="username" class="username"></span></span>
+                    <span class="welcome-text"><span data-i18n="header.welcome">Welcome,</span> <span id="username" class="username clickable" onclick="openUserSettings()"></span></span>
                     <a href="#" onclick="logout()" class="logout-link" data-i18n="header.logout">Logout</a>
                 </span>
                 <div id="websocket-status" class="websocket-status" style="display: none;">
@@ -199,7 +199,7 @@
         
         <!-- 定时任务管理弹窗 -->
         <div id="scheduledTasksModal" class="modal" style="display: none;">
-            <div class="modal-content">
+            <div class="modal-content scheduled-task-modal">
                 <div class="modal-header">
                     <h2>⏰ <span data-i18n="modal.title">定时任务管理</span></h2>
                     <span class="close" onclick="closeScheduledTasksModal()">&times;</span>
@@ -216,13 +216,10 @@
                         </div>
                         
                         <div class="form-group">
-                            <label data-i18n="modal.urls">URLs (每行一个):</label>
-                            <textarea id="modal_urls" rows="3" required data-i18n="modal.urls_placeholder" placeholder="https://blog.openai.com&#10;https://blog.microsoft.com"></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label data-i18n="modal.email_recipients">邮件接收者:</label>
-                            <input type="text" id="emailRecipients" data-i18n="modal.email_recipients_placeholder" placeholder="多个邮箱用逗号分隔（可选）">
+                            <label data-i18n="modal.companies">选择公司:</label>
+                            <div id="modal_companies" class="company-selection">
+                                <!-- 公司选择将通过JavaScript动态生成 -->
+                            </div>
                         </div>
                         
                         <div class="form-group">
@@ -244,7 +241,10 @@
                             <select id="scheduleDay"></select>
                         </div>
                         
-                        <button type="submit" class="btn" data-i18n="modal.create_button">创建任务</button>
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="closeScheduledTasksModal()" data-i18n="modal.cancel">取消</button>
+                            <button type="submit" class="btn-create" data-i18n="modal.create_button">创建任务</button>
+                        </div>
                     </form>
                     
                     <!-- 任务列表 -->
@@ -495,6 +495,55 @@
             document.getElementById('modal_scheduleType').addEventListener('change', updateScheduleDay);
             document.getElementById('taskForm').addEventListener('submit', handleTaskSubmit);
             updateScheduleDay();
+            setupCompanySelection();
+        }
+        
+        // 设置公司选择
+        function setupCompanySelection() {
+            const companiesContainer = document.getElementById('modal_companies');
+            const companies = [
+                { id: 'wiz', name: 'Wiz', icon: 'wiz.svg' },
+                { id: 'aquasec', name: 'Aqua Security', icon: 'aquasec.svg' },
+                { id: 'datadog', name: 'Datadog', icon: 'datadog.svg' },
+                { id: 'dynatrace', name: 'Dynatrace', icon: 'dynatrace.svg' },
+                { id: 'illumio', name: 'Illumio', icon: 'illumio.svg' },
+                { id: 'paloaltonetworks', name: 'Palo Alto Networks', icon: 'paloaltonetworks.svg' },
+                { id: 'prophetsecurity', name: 'Prophet Security', icon: 'prophetsecurity.png' },
+                { id: 'protectai', name: 'Protect AI', icon: 'protectai.png' },
+                { id: 'securitiai', name: 'Securiti AI', icon: 'securitiai.png' },
+                { id: 'sentinelone', name: 'SentinelOne', icon: 'sentinelone.png' },
+                { id: 'simbian', name: 'Simbian', icon: 'simbian.png' },
+                { id: 'snowflake', name: 'Snowflake', icon: 'snowflake.svg' },
+                { id: 'sysdig', name: 'Sysdig', icon: 'sysdig.svg' }
+            ];
+            
+            companiesContainer.innerHTML = '';
+            
+            companies.forEach(company => {
+                const checkboxDiv = document.createElement('div');
+                checkboxDiv.className = 'company-checkbox';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `modal_company_${company.id}`;
+                checkbox.value = company.id;
+                
+                const icon = document.createElement('img');
+                icon.src = `/static/images/${company.icon}`;
+                icon.alt = company.name;
+                icon.className = 'modal-company-icon';
+                
+                checkboxDiv.appendChild(checkbox);
+                checkboxDiv.appendChild(icon);
+                
+                // 添加点击事件
+                checkboxDiv.addEventListener('click', function() {
+                    checkbox.checked = !checkbox.checked;
+                    checkboxDiv.classList.toggle('checked', checkbox.checked);
+                });
+                
+                companiesContainer.appendChild(checkboxDiv);
+            });
         }
         
         // 更新执行日期选项
@@ -528,10 +577,22 @@
         async function handleTaskSubmit(event) {
             event.preventDefault();
             
+            // 获取选中的公司
+            const selectedCompanies = [];
+            const companyCheckboxes = document.querySelectorAll('#modal_companies input[type="checkbox"]:checked');
+            companyCheckboxes.forEach(checkbox => {
+                selectedCompanies.push(checkbox.value);
+            });
+            
+            if (selectedCompanies.length === 0) {
+                alert('请至少选择一个公司');
+                return;
+            }
+            
             const formData = {
                 task_name: document.getElementById('modal_taskName').value,
-                urls: document.getElementById('modal_urls').value.split('\n').filter(url => url.trim()),
-                email_recipients: document.getElementById('emailRecipients').value.split(',').filter(email => email.trim()),
+                companies: selectedCompanies,
+                max_articles: 5, // 默认值
                 schedule_type: document.getElementById('modal_scheduleType').value,
                 schedule_time: document.getElementById('scheduleTime').value,
                 schedule_day: document.getElementById('scheduleDay').value || null
@@ -883,6 +944,53 @@
                 <div class="loading-spinner" style="margin: 0 auto 16px;"></div>
                 <h3 id="loadingTitle">Processing...</h3>
                 <p id="loadingMessage">Please wait while we process your request.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Settings Modal -->
+    <div id="userSettingsModal" class="modal" style="display: none;">
+        <div class="modal-content user-settings-modal">
+            <div class="user-settings-header">
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <div class="avatar-icon">👤</div>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-phone">
+                            <span id="userSettingsUsername" class="username-display"></span>
+                            <span class="verified-icon">✓</span>
+                        </div>
+                        <div class="user-name">
+                            <span data-i18n="settings.user">User</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="user-settings-body">
+                <div class="settings-section">
+                    <div class="settings-item">
+                        <div class="settings-label">
+                            <div class="settings-icon">🔔</div>
+                            <div class="settings-text">
+                                <div class="settings-title" data-i18n="settings.email_notifications">通知用户邮箱</div>
+                                <div class="settings-description" data-i18n="settings.email_notifications_desc">Enable to receive email notifications about task completion and updates</div>
+                            </div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="emailNotificationsToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="user-settings-footer">
+                <button class="btn-cancel" onclick="closeUserSettings()" data-i18n="settings.cancel">Cancel</button>
+                <button class="btn-save" onclick="saveUserSettings()" data-i18n="settings.save">Save</button>
             </div>
         </div>
     </div>

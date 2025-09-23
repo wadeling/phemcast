@@ -1009,13 +1009,105 @@ function closeLoadingModal() {
 
 // Close modals when clicking outside
 window.addEventListener('click', function(event) {
-    const modals = ['alertModal', 'confirmModal', 'loadingModal'];
+    const modals = ['alertModal', 'confirmModal', 'loadingModal', 'userSettingsModal'];
     modals.forEach(modalId => {
         const modal = document.getElementById(modalId);
         if (event.target === modal) {
             if (modalId === 'alertModal') closeAlertModal();
             if (modalId === 'confirmModal') closeConfirmModal();
             if (modalId === 'loadingModal') closeLoadingModal();
+            if (modalId === 'userSettingsModal') closeUserSettings();
         }
     });
+});
+
+// User Settings Functions
+let currentUserSettings = null;
+
+async function openUserSettings() {
+    try {
+        // Show loading modal
+        showLoadingModal('Loading Settings', 'Please wait while we load your settings...');
+        
+        // Fetch user settings
+        const response = await fetch('/api/user-settings', {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const settings = await response.json();
+        currentUserSettings = settings;
+        
+        // Close loading modal
+        closeLoadingModal();
+        
+        // Populate settings modal
+        document.getElementById('userSettingsUsername').textContent = settings.username;
+        document.getElementById('emailNotificationsToggle').checked = settings.email_notifications;
+        
+        // Show settings modal
+        document.getElementById('userSettingsModal').style.display = 'block';
+        
+    } catch (error) {
+        console.error('Error loading user settings:', error);
+        closeLoadingModal();
+        showAlertModal('Error', 'Failed to load user settings. Please try again.');
+    }
+}
+
+function closeUserSettings() {
+    document.getElementById('userSettingsModal').style.display = 'none';
+    currentUserSettings = null;
+}
+
+async function saveUserSettings() {
+    try {
+        const emailNotifications = document.getElementById('emailNotificationsToggle').checked;
+        
+        // Show loading modal
+        showLoadingModal('Saving Settings', 'Please wait while we save your settings...');
+        
+        // Update user settings
+        const response = await fetch('/api/user-settings', {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                email_notifications: emailNotifications
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // Close loading modal
+        closeLoadingModal();
+        
+        // Close settings modal
+        closeUserSettings();
+        
+        // Show success message
+        showAlertModal('Success', 'Your settings have been saved successfully!');
+        
+    } catch (error) {
+        console.error('Error saving user settings:', error);
+        closeLoadingModal();
+        showAlertModal('Error', 'Failed to save user settings. Please try again.');
+    }
+}
+
+// Handle keyboard events for user settings modal
+document.addEventListener('keydown', function(event) {
+    const userSettingsModal = document.getElementById('userSettingsModal');
+    if (userSettingsModal.style.display === 'block') {
+        if (event.key === 'Escape') {
+            closeUserSettings();
+        } else if (event.key === 'Enter' && event.ctrlKey) {
+            saveUserSettings();
+        }
+    }
 });

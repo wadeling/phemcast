@@ -58,21 +58,18 @@ class TaskManager:
             
             # Log incoming task data for debugging
             logger.debug(f"Creating task with data: {task_data}")
-            logger.debug(f"URLs from request: {task_data.get('urls', [])}")
-            logger.debug(f"Email recipients from request: {task_data.get('email_recipients', [])}")
+            logger.debug(f"Companies from request: {task_data.get('companies', [])}")
             
             # Prepare task data
             task_data['id'] = task_id
-            task_data['user_id'] = username
+            task_data['user_name'] = username
             task_data['created_at'] = datetime.utcnow()
             task_data['updated_at'] = datetime.utcnow()
             
-            # Convert lists to JSON strings for database storage
-            urls_json = json.dumps(task_data.get('urls', []))
-            email_recipients_json = json.dumps(task_data.get('email_recipients', []))
+            # Convert companies list to JSON string for database storage
+            companies_json = json.dumps(task_data.get('companies', []))
             
-            logger.debug(f"URLs JSON: {urls_json}")
-            logger.debug(f"Email recipients JSON: {email_recipients_json}")
+            logger.debug(f"Companies JSON: {companies_json}")
             
             # Convert East Eight time to UTC time before saving to database
             schedule_time_utc = self.convert_east_eight_to_utc(task_data['schedule_time'])
@@ -84,11 +81,11 @@ class TaskManager:
                 await session.execute(
                     text("""
                         INSERT INTO scheduled_tasks (
-                            id, task_name, user_id, urls, email_recipients, max_articles,
+                            id, task_name, user_name, companies, max_articles,
                             schedule_type, schedule_time, schedule_day, is_active,
                             created_at, updated_at
                         ) VALUES (
-                            :id, :task_name, :user_id, :urls, :email_recipients, :max_articles,
+                            :id, :task_name, :user_name, :companies, :max_articles,
                             :schedule_type, :schedule_time, :schedule_day, :is_active,
                             :created_at, :updated_at
                         )
@@ -96,9 +93,8 @@ class TaskManager:
                     {
                         'id': task_id,
                         'task_name': task_data['task_name'],
-                        'user_id': username,
-                        'urls': urls_json,
-                        'email_recipients': email_recipients_json,
+                        'user_name': username,
+                        'companies': companies_json,
                         'max_articles': str(task_data.get('max_articles', 5)),
                         'schedule_type': task_data['schedule_type'],
                         'schedule_time': schedule_time_utc,  # 使用转换后的UTC时间
@@ -140,8 +136,7 @@ class TaskManager:
                             'id': row.id,
                             'task_name': row.task_name,
                             'user_name': row.user_name,
-                            'urls': json.loads(row.urls) if row.urls else [],
-                            'email_recipients': json.loads(row.email_recipients) if row.email_recipients else [],
+                            'companies': json.loads(row.companies) if row.companies else [],
                             'max_articles': int(row.max_articles) if row.max_articles else 5,
                             'schedule_type': row.schedule_type,
                             'schedule_time': row.schedule_time,
@@ -175,7 +170,7 @@ class TaskManager:
             async with db as session:
                 # Check if task exists and belongs to user
                 result = await session.execute(
-                    text("SELECT id FROM scheduled_tasks WHERE id = :task_id AND user_id = :username"),
+                    text("SELECT id FROM scheduled_tasks WHERE id = :task_id AND user_name = :username"),
                     {'task_id': task_id, 'username': username}
                 )
                 if not result.fetchone():
@@ -190,13 +185,9 @@ class TaskManager:
                     update_fields.append("task_name = :task_name")
                     params['task_name'] = update_data['task_name']
                 
-                if 'urls' in update_data:
-                    update_fields.append("urls = :urls")
-                    params['urls'] = json.dumps(update_data['urls'])
-                
-                if 'email_recipients' in update_data:
-                    update_fields.append("email_recipients = :email_recipients")
-                    params['email_recipients'] = json.dumps(update_data['email_recipients'])
+                if 'companies' in update_data:
+                    update_fields.append("companies = :companies")
+                    params['companies'] = json.dumps(update_data['companies'])
                 
                 if 'max_articles' in update_data:
                     update_fields.append("max_articles = :max_articles")
@@ -227,7 +218,7 @@ class TaskManager:
                 
                 if update_fields:
                     # Build and execute update query
-                    update_query = f"UPDATE scheduled_tasks SET {', '.join(update_fields)} WHERE id = :task_id AND user_id = :username"
+                    update_query = f"UPDATE scheduled_tasks SET {', '.join(update_fields)} WHERE id = :task_id AND user_name = :username"
                     await session.execute(text(update_query), params)
                     await session.commit()
                     
@@ -247,7 +238,7 @@ class TaskManager:
             async with db as session:
                 # Check if task exists and belongs to user
                 result = await session.execute(
-                    text("SELECT id FROM scheduled_tasks WHERE id = :task_id AND user_id = :username"),
+                    text("SELECT id FROM scheduled_tasks WHERE id = :task_id AND user_name = :username"),
                     {'task_id': task_id, 'username': username}
                 )
                 if not result.fetchone():
@@ -256,7 +247,7 @@ class TaskManager:
                 
                 # Delete the task
                 await session.execute(
-                    text("DELETE FROM scheduled_tasks WHERE id = :task_id AND user_id = :username"),
+                    text("DELETE FROM scheduled_tasks WHERE id = :task_id AND user_name = :username"),
                     {'task_id': task_id, 'username': username}
                 )
                 await session.commit()
@@ -275,7 +266,7 @@ class TaskManager:
             async with db as session:
                 # Check if task exists and belongs to user
                 result = await session.execute(
-                    text("SELECT id, is_active FROM scheduled_tasks WHERE id = :task_id AND user_id = :username"),
+                    text("SELECT id, is_active FROM scheduled_tasks WHERE id = :task_id AND user_name = :username"),
                     {'task_id': task_id, 'username': username}
                 )
                 row = result.fetchone()
@@ -286,7 +277,7 @@ class TaskManager:
                 # Toggle the status
                 new_status = not row.is_active
                 await session.execute(
-                    text("UPDATE scheduled_tasks SET is_active = :is_active, updated_at = :updated_at WHERE id = :task_id AND user_id = :username"),
+                    text("UPDATE scheduled_tasks SET is_active = :is_active, updated_at = :updated_at WHERE id = :task_id AND user_name = :username"),
                     {
                         'is_active': new_status,
                         'updated_at': datetime.utcnow(),

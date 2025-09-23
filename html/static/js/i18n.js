@@ -16,6 +16,13 @@ class I18n {
                 'header.websocket.connected': 'WebSocket: Connected',
                 'header.websocket.disconnected': 'WebSocket: Disconnected',
                 
+                // User Settings
+                'settings.user': 'User',
+                'settings.email_notifications': 'Email Notifications',
+                'settings.email_notifications_desc': 'Enable to receive email notifications about task completion and updates',
+                'settings.cancel': 'Cancel',
+                'settings.save': 'Save',
+                
                 // Hero Section
                 'hero.badge': 'AI-Powered Podcast Generator',
                 'hero.title': 'Summon the voice of industry intelligence',
@@ -124,10 +131,7 @@ class I18n {
                 'modal.create_task': 'Create New Scheduled Task',
                 'modal.task_name': 'Task Name',
                 'modal.task_name_placeholder': 'e.g., Weekly Industry Report',
-                'modal.urls': 'URLs (one per line)',
-                'modal.urls_placeholder': 'https://blog.openai.com\nhttps://blog.microsoft.com',
-                'modal.email_recipients': 'Email Recipients',
-                'modal.email_recipients_placeholder': 'Multiple emails separated by commas (optional)',
+                'modal.companies': 'Select Companies',
                 'modal.schedule_frequency': 'Execution Frequency',
                 'modal.schedule_daily': 'Daily',
                 'modal.schedule_weekly': 'Weekly',
@@ -135,6 +139,7 @@ class I18n {
                 'modal.execution_time': 'Execution Time (UTC+8)',
                 'modal.execution_date': 'Execution Date',
                 'modal.create_button': 'Create Task',
+                'modal.cancel': 'Cancel',
                 'modal.my_tasks': 'My Scheduled Tasks',
                 'modal.loading': 'Loading...',
                 'modal.close': 'Close',
@@ -167,6 +172,13 @@ class I18n {
                 'header.websocket.connecting': 'WebSocket: 连接中...',
                 'header.websocket.connected': 'WebSocket: 已连接',
                 'header.websocket.disconnected': 'WebSocket: 已断开',
+                
+                // User Settings
+                'settings.user': '用户',
+                'settings.email_notifications': '通知用户邮箱',
+                'settings.email_notifications_desc': '启用以接收任务完成和更新的邮件通知',
+                'settings.cancel': '取消',
+                'settings.save': '保存',
                 
                 // Hero Section
                 'hero.badge': 'AI驱动的播客生成器',
@@ -276,10 +288,7 @@ class I18n {
                 'modal.create_task': '创建新定时任务',
                 'modal.task_name': '任务名称',
                 'modal.task_name_placeholder': '例如：每周行业报告',
-                'modal.urls': 'URLs (每行一个)',
-                'modal.urls_placeholder': 'https://blog.openai.com\nhttps://blog.microsoft.com',
-                'modal.email_recipients': '邮件接收者',
-                'modal.email_recipients_placeholder': '多个邮箱用逗号分隔（可选）',
+                'modal.companies': '选择公司',
                 'modal.schedule_frequency': '执行频率',
                 'modal.schedule_daily': '每天',
                 'modal.schedule_weekly': '每周',
@@ -287,6 +296,7 @@ class I18n {
                 'modal.execution_time': '执行时间 (东八区时间)',
                 'modal.execution_date': '执行日期',
                 'modal.create_button': '创建任务',
+                'modal.cancel': '取消',
                 'modal.my_tasks': '我的定时任务',
                 'modal.loading': '加载中...',
                 'modal.close': '关闭',
