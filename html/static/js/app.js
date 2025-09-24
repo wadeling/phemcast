@@ -372,6 +372,7 @@ function updateTaskStatusFromWebSocket(message) {
 // Task Cards Management
 let taskCards = [];
 let currentPlayingCard = null;
+let currentPlaylistIndex = -1; // Track current position in playlist
 
 function createTaskCard(taskData) {
     const cardId = `task-card-${taskData.task_id}`;
@@ -445,6 +446,8 @@ function createTaskCard(taskData) {
         
         audio.addEventListener('ended', () => {
             resetPlayButton(taskData.task_id);
+            // Auto-play next card
+            playNextCard();
         });
     }
     
@@ -469,6 +472,11 @@ function addTaskCard(taskData) {
     const card = createTaskCard(taskData);
     container.appendChild(card);
     taskCards.push(taskData);
+    
+    // If this is the first card and no card is currently playing, set it as the starting point
+    if (currentPlaylistIndex === -1 && taskCards.length === 1) {
+        currentPlaylistIndex = 0;
+    }
     
     // Scroll to the new card
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -510,6 +518,8 @@ function togglePlay(taskId) {
             </svg>
         `;
         currentPlayingCard = taskId;
+        // Update playlist index to current playing card
+        currentPlaylistIndex = taskCards.findIndex(card => card.task_id === taskId);
     } else {
         audio.pause();
         playBtn.innerHTML = `
@@ -533,6 +543,56 @@ function resetPlayButton(taskId) {
     if (currentPlayingCard === taskId) {
         currentPlayingCard = null;
     }
+}
+
+function playNextCard() {
+    // Check if there are cards available and we're not at the end
+    if (taskCards.length === 0 || currentPlaylistIndex === -1) {
+        console.log('No cards available or playlist not initialized');
+        return;
+    }
+    
+    // Move to next card
+    currentPlaylistIndex++;
+    
+    // Check if we've reached the end of the playlist
+    if (currentPlaylistIndex >= taskCards.length) {
+        console.log('Reached end of playlist');
+        currentPlaylistIndex = -1; // Reset playlist index
+        return;
+    }
+    
+    // Get the next card
+    const nextCard = taskCards[currentPlaylistIndex];
+    if (!nextCard) {
+        console.log('Next card not found');
+        return;
+    }
+    
+    console.log(`Auto-playing next card: ${nextCard.task_id} in 3 seconds...`);
+    
+    // Wait 3 seconds before playing the next card
+    setTimeout(() => {
+        // Double-check that we're still supposed to play this card
+        // (in case user manually changed playback during the delay)
+        if (currentPlaylistIndex >= 0 && currentPlaylistIndex < taskCards.length) {
+            const cardToPlay = taskCards[currentPlaylistIndex];
+            if (cardToPlay && cardToPlay.task_id === nextCard.task_id) {
+                console.log(`Now playing: ${nextCard.task_id}`);
+                
+                // Play the next card
+                togglePlay(nextCard.task_id);
+                
+                // Scroll to the next card
+                const nextCardElement = document.getElementById(`task-card-${nextCard.task_id}`);
+                if (nextCardElement) {
+                    nextCardElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            } else {
+                console.log('Playback state changed during delay, skipping auto-play');
+            }
+        }
+    }, 3000); // 3 second delay
 }
 
 function updateProgress(taskId, currentTime, duration) {
