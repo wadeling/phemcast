@@ -112,6 +112,64 @@ async def get_async_db():
     return db_manager.AsyncSessionLocal()
 
 
+def serialize_for_json(obj):
+    """Custom JSON serializer that handles Pydantic models and datetime objects."""
+    import json
+    from datetime import datetime
+    from models import Article, CompanyInsights
+    
+    if isinstance(obj, (Article, CompanyInsights)):
+        return obj.dict()
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: serialize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_for_json(item) for item in obj]
+    else:
+        return obj
+
+async def get_user_email_settings(user_name: str) -> tuple[str, bool]:
+    """
+    Get user email and notification settings.
+    
+    Args:
+        user_name: Username to check
+        
+    Returns:
+        Tuple of (user_email, email_notifications_enabled)
+    """
+    from sqlalchemy import text
+    from logging_config import get_logger
+    
+    logger = get_logger(__name__)
+    
+    try:
+        db = await get_async_db()
+        async with db as session:
+            # Get user email and notification settings
+            result = await session.execute(
+                text("""
+                    SELECT u.email, us.email_notifications 
+                    FROM users u 
+                    LEFT JOIN user_settings us ON u.username = us.username 
+                    WHERE u.username = :username
+                """),
+                {"username": user_name}
+            )
+            row = result.fetchone()
+            
+            if row:
+                user_email = row.email
+                email_notifications = row.email_notifications if row.email_notifications is not None else True
+                return user_email, email_notifications
+            else:
+                logger.warning(f"User {user_name} not found or no email settings")
+                return None, False
+    except Exception as e:
+        logger.error(f"Failed to get user settings: {e}")
+        return None, False
+
 async def record_task_execution(
     task_id: str,
     task_name: str,
@@ -119,6 +177,7 @@ async def record_task_execution(
     execution_type: str,  # "manual" or "scheduled"
     status: str,  # "success", "error", "processing"
     started_at: datetime,
+    task_group_id: str = None,
     completed_at: datetime = None,
     duration: int = None,
     total_articles: int = None,
@@ -143,17 +202,18 @@ async def record_task_execution(
             await session.execute(
                 text("""
                     INSERT INTO task_execution_history 
-                    (id, task_id, task_name, user_name, execution_type, status, started_at, 
+                    (id, task_id, task_group_id, task_name, user_name, execution_type, status, started_at, 
                      completed_at, duration, total_articles, total_urls, report_paths, 
                      errors, logs, created_at)
                     VALUES 
-                    (:id, :task_id, :task_name, :user_name, :execution_type, :status, :started_at,
+                    (:id, :task_id, :task_group_id, :task_name, :user_name, :execution_type, :status, :started_at,
                      :completed_at, :duration, :total_articles, :total_urls, :report_paths,
                      :errors, :logs, :created_at)
                 """),
                 {
                     "id": execution_id,
                     "task_id": task_id,
+                    "task_group_id": task_group_id,
                     "task_name": task_name,
                     "user_name": user_name,
                     "execution_type": execution_type,
@@ -163,9 +223,9 @@ async def record_task_execution(
                     "duration": duration,
                     "total_articles": total_articles,
                     "total_urls": total_urls,
-                    "report_paths": json.dumps(report_paths) if report_paths else None,
-                    "errors": json.dumps(errors) if errors else None,
-                    "logs": json.dumps(logs) if logs else None,
+                    "report_paths": json.dumps(serialize_for_json(report_paths)) if report_paths else None,
+                    "errors": json.dumps(serialize_for_json(errors)) if errors else None,
+                    "logs": json.dumps(serialize_for_json(logs)) if logs else None,
                     "created_at": datetime.utcnow()
                 }
             )
@@ -184,8 +244,8 @@ async def record_task_execution(
                 """),
                 {
                     "status": status,
-                    "result": json.dumps(result) if result else None,
-                    "report_paths": json.dumps(report_paths) if report_paths else None,
+                    "result": json.dumps(serialize_for_json(result)) if result else None,
+                    "report_paths": json.dumps(serialize_for_json(report_paths)) if report_paths else None,
                     "execution_time": completed_at or started_at,
                     "duration": duration,
                     "updated_at": datetime.utcnow(),
@@ -201,3 +261,4 @@ async def record_task_execution(
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
         raise
+

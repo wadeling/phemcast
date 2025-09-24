@@ -69,6 +69,7 @@ class TaskExecutionHistory(Base):
     
     id = Column(String(50), primary_key=True, index=True)
     task_id = Column(String(50), nullable=False, index=True)  # Reference to scheduled_tasks.id
+    task_group_id = Column(String(50), nullable=True, index=True)  # Reference to task group
     task_name = Column(String(255), nullable=False)
     user_name = Column(String(100), nullable=False, index=True)
     execution_type = Column(String(20), nullable=False)  # manual, scheduled

@@ -1,6 +1,8 @@
 """FastAPI web interface for industry news agent."""
 import asyncio
+import re
 import uuid
+import concurrent.futures
 from typing import List, Dict, Optional
 from datetime import datetime
 from pathlib import Path
@@ -31,7 +33,7 @@ from typing import List
 
 from agent import create_agent
 from models import TaskStatus
-from database import init_db, get_async_db, record_task_execution
+from database import init_db, get_async_db, record_task_execution, get_user_email_settings
 from db_models import User, UserSettings
 from task_manager import task_manager
 from auth import (
@@ -384,7 +386,6 @@ async def logout_force():
 @app.post("/api/generate-report-form")
 async def generate_report_form(
     companies: str = Form(...),
-    email: str = Form(None),
     max_articles: int = Form(5),
     current_user: User = Depends(get_current_user)
 ):
@@ -393,14 +394,13 @@ async def generate_report_form(
     
     Args:
         companies: JSON string with selected company names
-        email: Email for delivery
         max_articles: Max articles per blog
     
     Returns:
-        Task ID
+        Task group ID
     """
     logger.info("=== FORM SUBMISSION RECEIVED ===")
-    logger.info(f"Generating report for companies {companies} with email {email} and max_articles {max_articles}")
+    logger.info(f"Generating report for companies {companies} with max_articles {max_articles}")
     try:
         # Parse companies from JSON string
         import json
@@ -427,36 +427,20 @@ async def generate_report_form(
         if not company_configs:
             raise HTTPException(status_code=400, detail="No valid company URLs found")
         
-        # Create separate tasks for each company
-        task_ids = []
-        for company_config in company_configs:
-            task_id = str(uuid.uuid4())
-            task_ids.append(task_id)
-            
-            # Use asyncio to run in background
-            asyncio.create_task(
-                _process_report_task(
-                    task_id, 
-                    [company_config], 
-                    email, 
-                    max_articles,
-                    current_user.username
-                )
+        # Generate task group ID for this batch of companies
+        task_group_id = str(uuid.uuid4())
+        
+        # Use the new task group processing function
+        asyncio.create_task(
+            _process_task_group(
+                task_group_id,
+                company_configs,
+                max_articles,
+                current_user.username
             )
+        )
         
-        # Store task information for each company
-        for i, task_id in enumerate(task_ids):
-            running_tasks[task_id] = {
-                "status": "processing",
-                "created_at": datetime.now().isoformat(),
-                "company": company_configs[i]["name"],
-                "url": company_configs[i]["url"],
-                "rss": company_configs[i]["rss"],
-                "email": email,
-                "max_articles": max_articles
-            }
-        
-        return {"task_ids": task_ids, "status": "processing", "companies": selected_companies}
+        return {"task_group_id": task_group_id, "task_ids": [task_group_id], "status": "processing", "companies": selected_companies}
         
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid companies format")
@@ -759,145 +743,6 @@ async def cancel_task(task_id: str):
     return {"status": "cancelled"}
 
 
-async def _process_report_task(
-    task_id: str, 
-    company_configs: List[dict], 
-    email: Optional[str], 
-    max_articles: int,
-    user_name: str,
-    task_name: str = "Manual Report Generation"
-):
-    """Background task for processing reports."""
-    started_at = datetime.utcnow()
-    
-    try:
-        # Update status to processing
-        running_tasks[task_id]["status"] = "processing"
-        running_tasks[task_id]["started_at"] = started_at.isoformat()
-        
-        # Record task start in database
-        try:
-            await record_task_execution(
-                task_id=task_id,
-                task_name=task_name,
-                user_name=user_name,
-                execution_type="manual",
-                status="processing",
-                started_at=started_at
-            )
-        except Exception as db_error:
-            logger.warning(f"Failed to record task start in database: {db_error}")
-        
-        # Broadcast processing status
-        await manager.broadcast({
-            "type": "task_update",
-            "task_id": task_id,
-            "status": "processing",
-            "message": "Task started processing"
-        })
-        
-        # Extract URLs and company configs for workflow
-        urls = [config["url"] for config in company_configs]
-        
-        # Create and run agent with company configurations
-        agent = create_agent()
-        result = await agent.run_workflow(task_id, urls, [email] if email else None, max_articles, company_configs)
-        
-        # Calculate completion time and duration
-        completed_at = datetime.utcnow()
-        duration = int((completed_at - started_at).total_seconds())
-        
-        # Update task with enhanced results
-        running_tasks[task_id].update({
-            "status": result["status"],
-            "completed_at": completed_at.isoformat(),
-            "result": result,
-            "report_paths": result.get("report_paths", {}),
-            "report_path_md": result.get("report_paths", {}).get("markdown", ""),
-            "report_path_pdf": result.get("report_paths", {}).get("pdf", ""),
-            "report_path_audio": result.get("report_paths", {}).get("audio", ""),
-            "total_articles": result.get("total_articles", 0),
-            "total_urls": result.get("total_urls", 0),
-            "processing_time": result.get("processing_time", 0),
-            "logs": result.get("logs", []),
-            "errors": result.get("errors", [])
-        })
-        
-        # Record task completion in database
-        try:
-            await record_task_execution(
-                task_id=task_id,
-                task_name=task_name,
-                user_name=user_name,
-                execution_type="manual",
-                status=result["status"],
-                started_at=started_at,
-                completed_at=completed_at,
-                duration=duration,
-                total_articles=result.get("total_articles", 0),
-                total_urls=result.get("total_urls", 0),
-                report_paths=result.get("report_paths", {}),
-                errors=result.get("errors", []),
-                logs=result.get("logs", []),
-                result=result
-            )
-        except Exception as db_error:
-            logger.warning(f"Failed to record task completion in database: {db_error}")
-        
-        logger.info(f"Task {task_id} completed: {result['status']}")
-        
-        # Broadcast completion status
-        await manager.broadcast({
-            "type": "task_update",
-            "task_id": task_id,
-            "status": result["status"],
-            "message": "Task completed successfully",
-            "data": {
-                "total_articles": result.get("total_articles", 0),
-                "report_paths": result.get("report_paths", {}),
-                "email_sent": bool(email)
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Task {task_id} failed: {str(e)}")
-        
-        # Calculate completion time and duration for error case
-        completed_at = datetime.utcnow()
-        duration = int((completed_at - started_at).total_seconds())
-        
-        running_tasks[task_id].update({
-            "status": "error",
-            "error": str(e),
-            "logs": [f"❌ Processing failed: {str(e)}", "📋 See error details above"],
-            "completed_at": completed_at.isoformat()
-        })
-        
-        # Record task error in database
-        try:
-            await record_task_execution(
-                task_id=task_id,
-                task_name=task_name,
-                user_id=user_name,
-                execution_type="manual",
-                status="error",
-                started_at=started_at,
-                completed_at=completed_at,
-                duration=duration,
-                errors=[str(e)],
-                logs=[f"❌ Processing failed: {str(e)}", "📋 See error details above"]
-            )
-        except Exception as db_error:
-            logger.warning(f"Failed to record task error in database: {db_error}")
-        
-        # Broadcast error status
-        await manager.broadcast({
-            "type": "task_update",
-            "task_id": task_id,
-            "status": "error",
-            "message": "Task failed",
-            "error": "Task failed"
-        })
 
 
 
@@ -1190,6 +1035,362 @@ async def update_user_settings(
     except Exception as e:
         logger.error(f"Failed to update user settings: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to update user settings")
+
+
+async def _process_task_group(
+    task_group_id: str,
+    company_configs: List[dict],
+    max_articles: int,
+    user_name: str
+):
+    """Process a group of companies using asyncio.gather for parallel execution."""
+    import asyncio
+    
+    logger.info(f"Starting task group {task_group_id} with {len(company_configs)} companies")
+    
+    try:
+        # Create tasks for each company
+        tasks = [
+            _process_single_company_task(
+                task_group_id,
+                company_config,
+                max_articles,
+                user_name
+            )
+            for company_config in company_configs
+        ]
+        
+        # Wait for all tasks to complete concurrently
+        logger.info(f"Waiting for all {len(tasks)} company tasks to complete")
+        task_results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Process results and handle exceptions
+        processed_results = []
+        for i, result in enumerate(task_results):
+            if isinstance(result, Exception):
+                logger.error(f"Company {company_configs[i]['name']} failed: {result}")
+                processed_results.append({
+                    "company_name": company_configs[i]["name"],
+                    "error": str(result),
+                    "status": "error"
+                })
+            else:
+                processed_results.append(result)
+                logger.info(f"Company {company_configs[i]['name']} completed")
+        
+        # Aggregate all results and send final email
+        await _aggregate_and_send_final_report(
+            task_group_id,
+            processed_results,
+            user_name
+        )
+        
+    except Exception as e:
+        logger.error(f"Task group {task_group_id} failed: {e}")
+        # Broadcast error status
+        await manager.broadcast({
+            "type": "task_group_error",
+            "task_group_id": task_group_id,
+            "status": "error",
+            "message": f"Task group failed: {str(e)}"
+        })
+
+
+async def _process_single_company_task(
+    task_group_id: str,
+    company_config: dict,
+    max_articles: int,
+    user_name: str
+) -> dict:
+    """Process a single company task asynchronously."""
+    from agent import create_agent
+    from database import record_task_execution
+    from datetime import datetime
+    
+    task_id = str(uuid.uuid4())
+    company_name = company_config["name"]
+    started_at = datetime.utcnow()
+    
+    logger.info(f"Processing company {company_name} (task_id: {task_id})")
+    
+    try:
+        # Record task start in database
+        try:
+            await record_task_execution(
+                task_id=task_id,
+                task_name=f"Company Report - {company_name}",
+                user_name=user_name,
+                execution_type="manual",
+                status="processing",
+                started_at=started_at,
+                task_group_id=task_group_id
+            )
+        except Exception as db_error:
+            logger.error(f"Failed to record task start in database: {db_error}")
+            return {
+                "task_id": task_id,
+                "task_group_id": task_group_id,
+                "company_name": company_name,
+                "company_config": company_config,
+                "error": f"Database recording failed: {str(db_error)}",
+                "status": "error"
+            }
+       
+        # Run the workflow for this single company
+        agent = create_agent()
+        result = await agent.run_workflow(
+            task_id=task_id,
+            urls=[company_config["url"]],
+            max_articles=max_articles,
+            company_configs=[company_config]
+        )
+        
+        # Calculate completion time and duration
+        completed_at = datetime.utcnow()
+        duration = int((completed_at - started_at).total_seconds())
+        logger.info(f"Company {company_name} workflow completed successfully,task_id: {task_id},result: {result}")
+        
+        # Record task completion in database
+        try:
+            await record_task_execution(
+                task_id=task_id,
+                task_name=f"Company Report - {company_name}",
+                user_name=user_name,
+                execution_type="manual",
+                status=result["status"],
+                started_at=started_at,
+                task_group_id=task_group_id,
+                completed_at=completed_at,
+                duration=duration,
+                total_articles=result.get("total_articles", 0),
+                total_urls=result.get("total_urls", 0),
+                report_paths=result.get("report_paths", {}),
+                errors=result.get("errors", []),
+                logs=result.get("logs", []),
+                result=result
+            )
+        except Exception as db_error:
+            logger.warning(f"Failed to record task completion in database: {db_error}")
+       
+        # Add metadata to result
+        result.update({
+            "task_id": task_id,
+            "task_group_id": task_group_id,
+            "company_name": company_name,
+            "company_config": company_config
+        })
+        
+        logger.info(f"Company {company_name} completed successfully")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Company {company_name} failed: {e}")
+        
+        # Calculate completion time and duration for error case
+        completed_at = datetime.utcnow()
+        duration = int((completed_at - started_at).total_seconds())
+        
+        # Record task error in database
+        try:
+            await record_task_execution(
+                task_id=task_id,
+                task_name=f"Company Report - {company_name}",
+                user_name=user_name,
+                execution_type="manual",
+                status="error",
+                started_at=started_at,
+                task_group_id=task_group_id,
+                completed_at=completed_at,
+                duration=duration,
+                errors=[str(e)],
+                logs=[f"❌ Processing failed: {str(e)}"]
+            )
+        except Exception as db_error:
+            logger.warning(f"Failed to record task error in database: {db_error}")
+        
+        return {
+            "task_id": task_id,
+            "task_group_id": task_group_id,
+            "company_name": company_name,
+            "company_config": company_config,
+            "error": str(e),
+            "status": "error"
+        }
+
+
+async def _aggregate_and_send_final_report(
+    task_group_id: str,
+    task_results: List[dict],
+    user_name: str
+):
+    """Aggregate results from all company tasks and send final report."""
+    try:
+        from report_generator import ReportGenerator
+        from email_service import EmailService
+        from settings import load_settings
+        from models import Article
+        
+        logger.info(f"Aggregating results for task group {task_group_id}")
+        
+        # Collect all articles
+        all_articles = []
+        total_articles = 0
+        total_urls = 0
+        all_errors = []
+        all_logs = []
+        successful_companies = []
+        
+        for result in task_results:
+            if result.get("status") != "error" and "error" not in result:
+                # Successful task
+                articles = result.get("articles", [])
+                
+                # Convert articles to Article objects if needed
+                for article_data in articles:
+                    if isinstance(article_data, dict):
+                        article = Article(
+                            title=article_data.get("title", ""),
+                            url=article_data.get("url", ""),
+                            company_name=article_data.get("company_name", ""),
+                            publish_date=article_data.get("publish_date"),
+                            summary=article_data.get("summary", ""),
+                            content=article_data.get("content", ""),
+                            word_count=article_data.get("word_count", 0)
+                        )
+                        all_articles.append(article)
+                    else:
+                        all_articles.append(article_data)
+                
+                total_articles += result.get("total_articles", 0)
+                total_urls += result.get("total_urls", 0)
+                all_logs.extend(result.get("logs", []))
+                successful_companies.append(result.get("company_name", "Unknown"))
+            else:
+                # Failed task
+                all_errors.append(f"Company {result.get('company_name', 'Unknown')} failed: {result.get('error', 'Unknown error')}")
+        
+        # Generate company insights from all articles
+        all_company_insights = {}
+        if all_articles:
+            # Group articles by company
+            company_articles = {}
+            for article in all_articles:
+                company = article.company_name or "Unknown Company"
+                if company not in company_articles:
+                    company_articles[company] = []
+                company_articles[company].append(article)
+            
+            # Generate insights for each company
+            from models import CompanyInsights
+            for company, company_arts in company_articles.items():
+                all_topics = []
+                all_insights = []
+                
+                for article in company_arts:
+                    all_topics.extend(article.tags or [])
+                    all_insights.extend(article.key_insights or [])
+                
+                # Calculate trend score
+                trend_score = min(1.0, len(company_arts) / 5)  # Simple scoring
+                
+                # Extract domain from first article's URL
+                domain = "unknown"
+                if company_arts and company_arts[0].url:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(company_arts[0].url)
+                    domain = parsed.netloc
+                
+                insight = CompanyInsights(
+                    company_name=company,
+                    domain=domain,
+                    article_count=len(company_arts),
+                    insights=list(set(all_insights)),
+                    trend_score=trend_score,
+                    key_topics=list(set(all_topics))[:5]
+                )
+                
+                all_company_insights[company] = insight
+        
+        if not all_articles:
+            logger.warning(f"No articles found in task group {task_group_id}")
+            await manager.broadcast({
+                "type": "task_group_completed",
+                "task_group_id": task_group_id,
+                "status": "error",
+                "message": "No articles found to aggregate"
+            })
+            return
+        
+        # Generate aggregated report
+        settings = load_settings()
+        report_generator = ReportGenerator(settings)
+        
+        report_paths = await report_generator.generate_all_reports(
+            all_articles, all_company_insights, include_audio=False
+        )
+        
+        # Check user settings for email notifications
+        email_sent = False
+        user_email = None
+        
+        # Get user settings to check if email notifications are enabled
+        user_email, email_notifications = await get_user_email_settings(user_name)
+        
+        # Send aggregated email if notifications are enabled and user has email
+        if email_notifications and user_email and report_paths:
+            try:
+                email_service = EmailService(settings)
+                report_metadata = {
+                    "total_articles": total_articles,
+                    "companies": successful_companies,
+                    "execution_date": datetime.now(),
+                    "task_group_id": task_group_id
+                }
+                
+                email_results = await email_service.send_bulk_reports(
+                    [user_email], report_paths, report_metadata
+                )
+                email_sent = any(email_results.values())
+                logger.info(f"Aggregated email sent to {user_email}: {email_sent}")
+            except Exception as e:
+                logger.error(f"Failed to send aggregated email: {e}")
+        else:
+            if not email_notifications:
+                logger.info(f"Email notifications disabled for user {user_name}")
+            elif not user_email:
+                logger.warning(f"No email address found for user {user_name}")
+            elif not report_paths:
+                logger.warning("No report paths available for email")
+        
+        # Broadcast completion status
+        await manager.broadcast({
+            "type": "task_group_completed",
+            "task_group_id": task_group_id,
+            "status": "completed",
+            "message": "All tasks in group completed",
+            "data": {
+                "total_articles": total_articles,
+                "total_urls": total_urls,
+                "companies": successful_companies,
+                "report_paths": report_paths,
+                "email_sent": email_sent,
+                "errors": all_errors,
+                "logs": all_logs
+            }
+        })
+        
+        logger.info(f"Task group {task_group_id} completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Failed to aggregate and send final report: {e}")
+        await manager.broadcast({
+            "type": "task_group_error",
+            "task_group_id": task_group_id,
+            "status": "error",
+            "message": f"Failed to aggregate results: {str(e)}"
+        })
+
+
 
 
 

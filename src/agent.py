@@ -39,18 +39,14 @@ class IndustryNewsAgent:
         workflow.add_node("validate_urls", self._validate_urls)
         workflow.add_node("scrape_articles", self._scrape_articles)
         workflow.add_node("analyze_content", self._analyze_content)
-        workflow.add_node("generate_aggregation", self._generate_aggregation)
         workflow.add_node("generate_reports", self._generate_reports)
-        workflow.add_node("send_emails", self._send_emails)
         
         # Add edges (workflow flow)
         workflow.set_entry_point("validate_urls")
         workflow.add_edge("validate_urls", "scrape_articles")
         workflow.add_edge("scrape_articles", "analyze_content")
-        workflow.add_edge("analyze_content", "generate_aggregation")
-        workflow.add_edge("generate_aggregation", "generate_reports")
-        workflow.add_edge("generate_reports", "send_emails")
-        workflow.add_edge("send_emails", END)
+        workflow.add_edge("analyze_content", "generate_reports")
+        workflow.add_edge("generate_reports", END)
         
         # Compile workflow
         checkpointer = MemorySaver()
@@ -60,7 +56,6 @@ class IndustryNewsAgent:
         self, 
         task_id: str,
         urls: List[str], 
-        email_recipients: List[str] = None, 
         max_articles: int = 5,
         company_configs: List[Dict] = None
     ) -> Dict[str, Any]:
@@ -86,7 +81,6 @@ class IndustryNewsAgent:
             initial_state = {
                 "task_id": task_id,
                 "urls": urls,
-                "email_recipients": email_recipients or [],
                 "max_articles": max_articles,
                 "company_configs": company_configs or [],
                 "processing_status": "starting",
@@ -138,10 +132,10 @@ class IndustryNewsAgent:
                 "total_articles": len(final_state.get("articles", [])),
                 "total_urls": final_state.get("total_urls", 0),
                 "report_paths": report_paths,
-                "email_sent": final_state.get("email_sent", False),
                 "total_tokens_used": final_state.get("total_tokens_used", 0),
                 "logs": final_state.get("logs", []),
-                "processing_time": final_state.get("processing_time", 0)
+                "processing_time": final_state.get("processing_time", 0),
+                "articles": final_state.get("articles", [])  # Include articles for aggregation
             }
             
         except Exception as e:
@@ -175,6 +169,7 @@ class IndustryNewsAgent:
         })
         
         return state
+    
     
     async def _scrape_detailed_content(self, articles: List[Dict]) -> List[Dict]:
         """Scrape detailed content for a list of articles."""
@@ -343,76 +338,19 @@ class IndustryNewsAgent:
         
         return state
     
-    async def _generate_aggregation(self, state: AgentState) -> AgentState:
-        """Generate company insights and industry aggregation."""
-        articles = state.get("articles", [])
-        
-        if not articles:
-            state["company_insights"] = {}
-            state["processing_status"] = "aggregation_complete"
-            return state
-        
-        # Group articles by company
-        company_articles: Dict[str, List[Article]] = {}
-        for article in articles:
-            company = article.company_name or "Unknown Company"
-            if company not in company_articles:
-                company_articles[company] = []
-            company_articles[company].append(article)
-        
-        # Generate insights
-        company_insights: Dict[str, CompanyInsights] = {}
-        
-        for company, company_arts in company_articles.items():
-            all_topics = []
-            all_insights = []
-            
-            for article in company_arts:
-                all_topics.extend(article.tags or [])
-                all_insights.extend(article.key_insights or [])
-            
-            # Calculate trend score
-            trend_score = min(1.0, len(company_arts) / 5)  # Simple scoring
-            
-            # Extract domain from first article's URL
-            domain = "unknown"
-            if company_arts and company_arts[0].url:
-                from urllib.parse import urlparse
-                parsed = urlparse(company_arts[0].url)
-                domain = parsed.netloc
-            
-            insight = CompanyInsights(
-                company_name=company,
-                domain=domain,
-                article_count=len(company_arts),
-                insights=list(set(all_insights)),
-                trend_score=trend_score,
-                key_topics=list(set(all_topics))[:5]
-            )
-            
-            company_insights[company] = insight
-        
-        state.update({
-            "company_insights": company_insights,
-            "processing_status": "aggregation_complete"
-        })
-        
-        logger.info(f"Generated insights for {len(company_insights)} companies")
-        return state
     
     async def _generate_reports(self, state: AgentState) -> AgentState:
         """Generate final reports."""
         articles = state.get("articles", [])
-        company_insights = state.get("company_insights", {})
         
-        logger.info(f"Starting report generation with {len(articles)} articles and {len(company_insights)} company insights")
+        logger.info(f"Starting report generation with {len(articles)} articles")
         
         if not articles:
             logger.warning("No articles available for report generation")
             state["report_path_md"] = ""
             state["report_path_pdf"] = ""
             state["report_path_audio"] = {}
-            state["processing_status"] = "reports_generated"
+            state["processing_status"] = "error"
             return state
         
         try:
@@ -422,53 +360,47 @@ class IndustryNewsAgent:
             state["logs"] = state.get("logs", []) + [f"📝 Starting report generation for {total_articles} articles"]
             
             report_generator = ReportGenerator(self.settings)
-            
-            # Add execution metadata
-            report_metadata = {
-                "total_articles": total_articles,
-                "companies": list(company_insights.keys()),
-                "execution_date": datetime.now()
-            }
-            
             logger.info(f"Calling ReportGenerator.generate_all_reports with {len(articles)} articles")
             report_paths = await report_generator.generate_all_reports(
                 articles, {}
             )
             
-            logger.info(f"ReportGenerator returned paths: {report_paths}")
-            logger.info(f"Audio data in report_paths: {report_paths.get('audio', 'Not found')}")
+            logger.info(f"ReportGenerator returned paths: {report_paths},audio_data: {report_paths.get('audio', 'Not found')}")
             
+            # 准备基础更新数据
             processing_time = (datetime.now() - start_time).total_seconds()
+            base_update = {
+                "total_articles": total_articles,
+                "execution_date": datetime.now(),
+                "report_path_md": report_paths.get("markdown", ""),
+                "report_path_pdf": report_paths.get("pdf", ""),
+                "processing_status": "completed",
+                "processing_time": processing_time
+            }
+            
+            # 准备日志
+            logs = state.get("logs", []) + [
+                f"✅ Reports generated: {list(report_paths.keys())}",
+                f"⏱️ Report generation time: {processing_time:.1f}s"
+            ]
+
             # 获取音频数据
             audio_data = report_paths.get("audio", {})
-            if audio_data and isinstance(audio_data, dict) and audio_data.get("success"):
+            audio_success = audio_data and isinstance(audio_data, dict) and audio_data.get("success")
+            if audio_success:
                 logger.info(f"Audio generation successful: {audio_data.get('access_token', 'No token')}")
-                state.update({
-                    "report_path_md": report_paths.get("markdown", ""),
-                    "report_path_pdf": report_paths.get("pdf", ""),
-                    "report_path_audio": audio_data.get("audio_path", ""),  # 保存完整的音频数据字典
-                    "processing_status": "reports_generated",
-                    "logs": state.get("logs", []) + [
-                        f"✅ Reports generated: {list(report_paths.keys())}",
-                        f"🎧 Audio report: {audio_data.get('access_token', 'No token')}",
-                        f"⏱️ Report generation time: {processing_time:.1f}s"
-                    ],
-                    "processing_time": processing_time
+                base_update.update({
+                    "report_path_audio": audio_data.get("audio_path", ""),
+                    "logs": logs + [f"🎧 Audio report: {audio_data.get('access_token', 'No token')}"]
                 })
             else:
                 logger.warning(f"Audio generation failed or not available: {audio_data}")
-                state.update({
-                    "report_path_md": report_paths.get("markdown", ""),
-                    "report_path_pdf": report_paths.get("pdf", ""),
-                    "report_path_audio": "",  # 空字典表示无音频
-                    "processing_status": "reports_generated",
-                    "logs": state.get("logs", []) + [
-                        f"✅ Reports generated: {list(report_paths.keys())}",
-                        f"⚠️ No audio report generated",
-                        f"⏱️ Report generation time: {processing_time:.1f}s"
-                    ],
-                    "processing_time": processing_time
+                base_update.update({
+                    "report_path_audio": "",
+                    "logs": logs + ["⚠️ No audio report generated"]
                 })
+            
+            state.update(base_update)
             
             logger.info(f"Generated reports: {list(report_paths.keys())}")
             logger.info(f"State after report generation - report_path_audio: {state.get('report_path_audio')}")
@@ -483,103 +415,6 @@ class IndustryNewsAgent:
         
         return state
     
-    async def _send_emails(self, state: AgentState) -> AgentState:
-        """Send reports via email."""
-        task_id = state.get("task_id", "")
-        report_path_md = state.get("report_path_md", "")
-        report_path_pdf = state.get("report_path_pdf", "")
-        report_path_audio = state.get("report_path_audio", "")
-        recipients = state.get("email_recipients", [])
-        
-        # Create report_paths dict for compatibility with email service
-        report_paths = {}
-        if report_path_md:
-            report_paths["markdown"] = report_path_md
-        if report_path_pdf:
-            report_paths["pdf"] = report_path_pdf
-        if report_path_audio:
-            report_paths["audio"] = report_path_audio
-        
-        # 添加音频数据支持
-        logger.info(f"Audio data added to email report_paths: {report_path_audio}")
-        
-        # Add more detailed logging
-        logger.info(f"=== EMAIL SENDING STEP ===")
-        logger.info(f"State keys: {list(state.keys())}")
-        logger.info(f"Processing status: {state.get('processing_status')}")
-        logger.info(f"Articles count: {len(state.get('articles', []))}")
-        logger.info(f"Company insights count: {len(state.get('company_insights', {}))}")
-        logger.info(f"Ready to send emails to recipients: {recipients}")
-        logger.info(f"Report path MD: {report_path_md}")
-        logger.info(f"Report path PDF: {report_path_pdf}")
-        logger.info(f"Report path Audio: {report_path_audio}")
-        logger.info(f"Report paths dict: {report_paths}")
-        logger.info(f"Report paths empty: {not report_paths}")
-
-        if not recipients:
-            state["email_sent"] = False
-            state["processing_status"] = "completed"
-            state["logs"] = state.get("logs", []) + ["📧 No email recipients specified - skipping email delivery"]
-            return state
-        
-        if not report_paths:
-            state.update({
-                "processing_status": "error",
-                "errors": state.get("errors", []) + ["No reports to send"],
-                "logs": state.get("logs", []) + ["❌ Cannot send email - no reports generated"]
-            })
-            return state
-        
-        try:
-            state["logs"] = state.get("logs", []) + [f"📧 Starting email delivery to {len(recipients)} recipients"]
-            
-            # Prepare metadata for email content
-            articles = state.get("articles", [])
-            company_insights = state.get("company_insights", {})
-            report_metadata = {
-                "total_articles": len(articles),
-                "companies": list(company_insights.keys()),
-                "execution_date": datetime.now(),
-                # 优化 SERVER_URL 结尾斜杠处理，确保不会出现重复或缺失斜杠
-                "audio_url": (os.getenv("SERVER_URL", "").rstrip("/") + "/download/" + task_id + "/audio") if os.getenv("SERVER_URL") else ""
-            }
-            
-            logger.info(f"Email metadata: {report_metadata}")
-            
-            email_service = EmailService(self.settings)
-            
-            email_results = await email_service.send_bulk_reports(
-                recipients, report_paths, report_metadata
-            )
-            
-            # Check if at least one email was sent successfully
-            any_sent = any(email_results.values())
-            success_count = list(email_results.values()).count(True)
-            
-            state.update({
-                "email_sent": any_sent,
-                "email_results": email_results,
-                "processing_status": "completed",
-                "logs": state.get("logs", []) + [
-                    f"📧 Email sending complete: {success_count}/{len(recipients)} succeeded",
-                    f"✅ Report processing completed successfully!"
-                ]
-            })
-            
-            if not any_sent:
-                state["errors"] = state.get("errors", []) + ["All email deliveries failed"]
-            
-            logger.info(f"Email sending completed: {email_results}")
-            
-        except Exception as e:
-            logger.error(f"Email sending failed: {str(e)}")
-            state.update({
-                "processing_status": "error",
-                "errors": state.get("errors", []) + [f"Email sending failed: {str(e)}"],
-                "logs": state.get("logs", []) + [f"❌ Email sending failed: {str(e)}"]
-            })
-        
-        return state
     
     async def _fetch_rss_articles(self, rss_url: str, max_articles: int) -> List[Dict]:
         """Fetch articles from RSS feed with curl fallback."""

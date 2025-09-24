@@ -249,7 +249,8 @@ class ReportGenerator:
     async def generate_all_reports(
         self, 
         articles: List[Article], 
-        report_config: Dict = None
+        report_config: Dict = None,
+        include_audio: bool = True
     ) -> Dict[str, str]:
         """
         Generate reports in all configured formats.
@@ -257,6 +258,7 @@ class ReportGenerator:
         Args:
             articles: List of analyzed articles
             report_config: Report configuration dictionary
+            include_audio: Whether to generate audio report (default: True)
             
         Returns:
             Dictionary with report file paths
@@ -305,8 +307,8 @@ class ReportGenerator:
             pdf_path = self._generate_pdf_report(report_data, timestamp)
             report_paths["pdf"] = str(pdf_path)
         
-        # Generate audio report if TTS is enabled
-        if config.get("include_audio", True) and self.tts_service:
+        # Generate audio report if TTS is enabled and include_audio is True
+        if include_audio and config.get("include_audio", True) and self.tts_service:
             try:
                 audio_result = await self._generate_audio_report(report_data, timestamp)
                 if audio_result["success"]:
