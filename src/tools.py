@@ -158,57 +158,63 @@ class ArticleExtractionTool(BaseTool):
             import json
             
             # Create prompt for article extraction
-            prompt = f"""Please analyze the following markdown content from a blog website and extract the {max_articles} most recent article URLs and titles.
+            prompt = f"""请分析以下博客网站的markdown内容，提取出{max_articles}篇最新的文章URL和标题。
 
-Blog URL: {blog_url}
-Markdown Content:
-{markdown_content[:32000]}  # Limit content to avoid token limits
+博客URL: {blog_url}
+Markdown内容:
+{markdown_content[:32000]}  
 
-Please return the articles in the following JSON format:
+要求:
+1. 只提取真正的博客文章（不包括导航、页脚或其他页面元素）
+2. 确保URL是绝对路径（如果是相对路径则包含域名）
+3. 如果有发布日期，优先选择更新的文章
+4. 返回恰好{max_articles}篇文章，如果不够则返回找到的所有文章
+5. 如果没有找到文章，返回空的articles数组
+6. 请确保返回的JSON格式正确，不要添加任何额外的说明或格式
+
+专注于找到指向独立博客文章的文章链接，而不是分类页面或其他网站部分。
+
+返回示例如下:
 {{
     "articles": [
         {{
-            "title": "Article Title",
-            "url": "Full Article URL",
-            "published": "Publication Date (if available)",
-            "summary": "Brief summary (if available)"
+            "title": "文章标题",
+            "url": "完整文章URL",
+            "published": "发布日期（如果有的话）",
+            "summary": "简要摘要（如果有的话）"
         }}
     ]
 }}
 
-Requirements:
-1. Extract only actual blog articles (not navigation, footer, or other page elements)
-2. Ensure URLs are absolute (include domain if relative)
-3. Prioritize more recent articles if publication dates are available
-4. Return exactly {max_articles} articles or fewer if not enough are found
-5. If no articles are found, return an empty articles array
+"""
 
-Focus on finding article links that lead to individual blog posts, not category pages or other site sections."""
-
-            # Call LLM
-            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
-            
-            # Parse response
-            try:
-                result = json.loads(response.content)
-                articles = result.get("articles", [])
-                
-                # Ensure URLs are absolute
-                for article in articles:
-                    url = article.get("url", "")
-                    if url and not url.startswith("http"):
-                        if url.startswith("/"):
-                            article["url"] = blog_url.rstrip("/") + url
-                        else:
-                            article["url"] = blog_url.rstrip("/") + "/" + url
-                
-                logger.info(f"ArticleExtractionTool extracted {len(articles)} articles from {blog_url}")
-                return articles
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse LLM response as JSON: {e}")
-                logger.error(f"LLM response: {response.content}")
-                return []
+            # Call LLM with retry mechanism
+            max_retries = 2
+            for attempt in range(max_retries + 1):
+                try:
+                    response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+                    result = json.loads(response.content)
+                    articles = result.get("articles", [])
+                    
+                    # Ensure URLs are absolute
+                    for article in articles:
+                        url = article.get("url", "")
+                        if url and not url.startswith("http"):
+                            if url.startswith("/"):
+                                article["url"] = blog_url.rstrip("/") + url
+                            else:
+                                article["url"] = blog_url.rstrip("/") + "/" + url
+                    
+                    logger.info(f"ArticleExtractionTool extracted {len(articles)} articles from {blog_url}")
+                    return articles
+                    
+                except json.JSONDecodeError as e:
+                    if attempt < max_retries:
+                        logger.warning(f"JSON parsing failed (attempt {attempt + 1}), retrying...")
+                    else:
+                        logger.error(f"Failed to parse LLM response as JSON after {max_retries + 1} attempts: {e}")
+                        logger.error(f"LLM response: {response.content}")
+                        return []
                 
         except Exception as e:
             logger.error(f"ArticleExtractionTool failed: {e}")

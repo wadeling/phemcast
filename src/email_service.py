@@ -3,7 +3,7 @@ import asyncio
 import os
 import json
 from pathlib import Path
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Any
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -734,3 +734,123 @@ class EmailService:
         """Switch to Tencent Cloud SES service."""
         self.use_tencent = True
         logger.info("Switched to Tencent Cloud SES email service")
+
+
+class EmailNotificationService:
+    """Email notification service for sending task completion reports."""
+    
+    def __init__(self):
+        self.name = "EmailNotification"
+    
+    async def execute(self, task_group_id: str, task_results: List[Dict], user_name: str):
+        """
+        Send email notification for task group completion.
+        
+        Args:
+            task_group_id: ID of the task group
+            task_results: List of task results
+            user_name: Username
+            
+        Returns:
+            Dict with success status and message
+        """
+        try:
+            from database import get_user_email_settings
+            from post_actions import PostActionResult
+            
+            # Get user email settings
+            user_email, email_notifications = await get_user_email_settings(user_name)
+            
+            if not email_notifications or not user_email:
+                return PostActionResult(
+                    success=True,
+                    message="Email notifications disabled or no email address configured"
+                )
+            
+            # Check if we have report paths from task results
+            report_paths = None
+            for result in task_results:
+                if result.get("status") != "error" and result.get("report_paths"):
+                    report_paths = result.get("report_paths")
+                    break
+            
+            if not report_paths:
+                return PostActionResult(
+                    success=True,
+                    message="No report paths available for email notification"
+                )
+            
+            # Calculate summary statistics
+            total_articles = sum(result.get("total_articles", 0) for result in task_results if result.get("status") != "error")
+            successful_companies = [result.get("company_name", "Unknown") for result in task_results if result.get("status") != "error"]
+            
+            # Send email notification
+            success = await self._send_email_notification(
+                task_group_id, user_email, report_paths, total_articles, successful_companies
+            )
+            
+            if success:
+                return PostActionResult(
+                    success=True,
+                    message=f"Email notification sent successfully to {user_email} for task group {task_group_id}"
+                )
+            else:
+                return PostActionResult(
+                    success=False,
+                    error="Failed to send email notification"
+                )
+                
+        except Exception as e:
+            logger.error(f"Email notification failed: {str(e)}")
+            from post_actions import PostActionResult
+            return PostActionResult(
+                success=False,
+                error=f"Email notification failed: {str(e)}"
+            )
+    
+    async def _send_email_notification(
+        self, 
+        task_group_id: str, 
+        user_email: str, 
+        report_paths: Dict[str, Any], 
+        total_articles: int, 
+        successful_companies: List[str]
+    ) -> bool:
+        """
+        Send email notification with report attachments.
+        
+        Args:
+            task_group_id: ID of the task group
+            user_email: User's email address
+            report_paths: Paths to generated reports
+            total_articles: Total number of articles processed
+            successful_companies: List of successful company names
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            from settings import load_settings
+            
+            settings = load_settings()
+            email_service = EmailService(settings)
+            
+            report_metadata = {
+                "total_articles": total_articles,
+                "companies": successful_companies,
+                "execution_date": datetime.now(),
+                "task_group_id": task_group_id
+            }
+            
+            email_results = await email_service.send_bulk_reports(
+                [user_email], report_paths, report_metadata
+            )
+            
+            email_sent = any(email_results.values())
+            logger.info(f"Email notification sent to {user_email}: {email_sent}")
+            
+            return email_sent
+            
+        except Exception as e:
+            logger.error(f"Failed to send email notification: {str(e)}")
+            return False

@@ -184,6 +184,7 @@ class AgentState(TypedDict, total=False):
     total_articles: int
     email_sent: bool
     processing_time: float
+    audio_content_text: Optional[str]  # Audio podcast content text
 
 
 class ScheduledTask(BaseModel):

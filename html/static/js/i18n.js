@@ -20,6 +20,10 @@ class I18n {
                 'settings.user': 'User',
                 'settings.email_notifications': 'Email Notifications',
                 'settings.email_notifications_desc': 'Enable to receive email notifications about task completion and updates',
+                'settings.feishu_notifications': 'Feishu Notifications',
+                'settings.feishu_notifications_desc': 'Enable to receive Feishu notifications when tasks are completed',
+                'settings.feishu_webhook': 'Feishu Webhook URL',
+                'settings.feishu_webhook_desc': 'Please enter your Feishu bot webhook address',
                 'settings.cancel': 'Cancel',
                 'settings.save': 'Save',
                 
@@ -177,6 +181,10 @@ class I18n {
                 'settings.user': '用户',
                 'settings.email_notifications': '通知用户邮箱',
                 'settings.email_notifications_desc': '启用以接收任务完成和更新的邮件通知',
+                'settings.feishu_notifications': '飞书通知',
+                'settings.feishu_notifications_desc': '启用后将在任务完成时发送飞书通知',
+                'settings.feishu_webhook': '飞书 Webhook 地址',
+                'settings.feishu_webhook_desc': '请输入您的飞书机器人 Webhook 地址',
                 'settings.cancel': '取消',
                 'settings.save': '保存',
                 

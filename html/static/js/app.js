@@ -1108,6 +1108,11 @@ async function openUserSettings() {
         // Populate settings modal
         document.getElementById('userSettingsUsername').textContent = settings.username;
         document.getElementById('emailNotificationsToggle').checked = settings.email_notifications;
+        document.getElementById('feishuNotificationsToggle').checked = settings.feishu_notifications_enabled;
+        document.getElementById('feishuWebhookUrl').value = settings.feishu_webhook_url || '';
+        
+        // Show/hide webhook input based on toggle state
+        toggleFeishuWebhookVisibility();
         
         // Show settings modal
         document.getElementById('userSettingsModal').style.display = 'block';
@@ -1124,9 +1129,36 @@ function closeUserSettings() {
     currentUserSettings = null;
 }
 
+function toggleFeishuWebhookVisibility() {
+    const feishuToggle = document.getElementById('feishuNotificationsToggle');
+    const webhookItem = document.getElementById('feishuWebhookItem');
+    
+    if (feishuToggle.checked) {
+        webhookItem.style.display = 'flex';
+    } else {
+        webhookItem.style.display = 'none';
+    }
+}
+
+// Add event listener for Feishu toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const feishuToggle = document.getElementById('feishuNotificationsToggle');
+    if (feishuToggle) {
+        feishuToggle.addEventListener('change', toggleFeishuWebhookVisibility);
+    }
+});
+
 async function saveUserSettings() {
     try {
         const emailNotifications = document.getElementById('emailNotificationsToggle').checked;
+        const feishuNotifications = document.getElementById('feishuNotificationsToggle').checked;
+        const feishuWebhookUrl = document.getElementById('feishuWebhookUrl').value.trim();
+        
+        // Validate Feishu webhook URL if notifications are enabled
+        if (feishuNotifications && !feishuWebhookUrl) {
+            showAlertModal('Error', 'Please enter a Feishu webhook URL to enable Feishu notifications.');
+            return;
+        }
         
         // Show loading modal
         showLoadingModal('Saving Settings', 'Please wait while we save your settings...');
@@ -1136,7 +1168,9 @@ async function saveUserSettings() {
             method: 'PUT',
             headers: getAuthHeaders(),
             body: JSON.stringify({
-                email_notifications: emailNotifications
+                email_notifications: emailNotifications,
+                feishu_notifications_enabled: feishuNotifications,
+                feishu_webhook_url: feishuWebhookUrl || null
             })
         });
         

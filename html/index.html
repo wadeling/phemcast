@@ -966,8 +966,8 @@
                         <div class="settings-label">
                             <div class="settings-icon">🔔</div>
                             <div class="settings-text">
-                                <div class="settings-title" data-i18n="settings.email_notifications">通知用户邮箱</div>
-                                <div class="settings-description" data-i18n="settings.email_notifications_desc">Enable to receive email notifications about task completion and updates</div>
+                                <div class="settings-title" data-i18n="settings.email_notifications">邮件通知</div>
+                                <div class="settings-description" data-i18n="settings.email_notifications_desc">启用后将在任务完成时发送邮件通知</div>
                             </div>
                         </div>
                         <div class="settings-control">
@@ -975,6 +975,34 @@
                                 <input type="checkbox" id="emailNotificationsToggle">
                                 <span class="toggle-slider"></span>
                             </label>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-item">
+                        <div class="settings-label">
+                            <div class="settings-icon">📱</div>
+                            <div class="settings-text">
+                                <div class="settings-title" data-i18n="settings.feishu_notifications">飞书通知</div>
+                                <div class="settings-description" data-i18n="settings.feishu_notifications_desc">启用后将在任务完成时发送飞书通知</div>
+                            </div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="feishuNotificationsToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-item" id="feishuWebhookItem" style="display: none;">
+                        <div class="settings-label">
+                            <div class="settings-icon">🔗</div>
+                            <div class="settings-text">
+                                <div class="settings-title" data-i18n="settings.feishu_webhook">飞书 Webhook 地址</div>
+                                <div class="settings-description" data-i18n="settings.feishu_webhook_desc">请输入您的飞书机器人 Webhook 地址</div>
+                                <input type="url" id="feishuWebhookUrl" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." 
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-top: 8px;">
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -170,6 +170,47 @@ async def get_user_email_settings(user_name: str) -> tuple[str, bool]:
         logger.error(f"Failed to get user settings: {e}")
         return None, False
 
+
+async def get_user_feishu_settings(user_name: str) -> tuple[str, bool]:
+    """
+    Get user Feishu webhook and notification settings.
+    
+    Args:
+        user_name: Username to check
+        
+    Returns:
+        Tuple of (feishu_webhook_url, feishu_notifications_enabled)
+    """
+    from sqlalchemy import text
+    from logging_config import get_logger
+    
+    logger = get_logger(__name__)
+    
+    try:
+        db = await get_async_db()
+        async with db as session:
+            # Get user Feishu settings
+            result = await session.execute(
+                text("""
+                    SELECT feishu_webhook_url, feishu_notifications_enabled 
+                    FROM user_settings 
+                    WHERE username = :username
+                """),
+                {"username": user_name}
+            )
+            row = result.fetchone()
+            
+            if row:
+                feishu_webhook_url = row.feishu_webhook_url
+                feishu_notifications_enabled = row.feishu_notifications_enabled if row.feishu_notifications_enabled is not None else False
+                return feishu_webhook_url, feishu_notifications_enabled
+            else:
+                logger.warning(f"User {user_name} not found or no Feishu settings")
+                return None, False
+    except Exception as e:
+        logger.error(f"Failed to get user Feishu settings: {e}")
+        return None, False
+
 async def record_task_execution(
     task_id: str,
     task_name: str,

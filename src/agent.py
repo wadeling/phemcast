@@ -135,7 +135,8 @@ class IndustryNewsAgent:
                 "total_tokens_used": final_state.get("total_tokens_used", 0),
                 "logs": final_state.get("logs", []),
                 "processing_time": final_state.get("processing_time", 0),
-                "articles": final_state.get("articles", [])  # Include articles for aggregation
+                "articles": final_state.get("articles", []),  # Include articles for aggregation
+                "audio_content_text": final_state.get("audio_content_text", "")  # Include audio content text
             }
             
         except Exception as e:
@@ -391,12 +392,14 @@ class IndustryNewsAgent:
                 logger.info(f"Audio generation successful: {audio_data.get('access_token', 'No token')}")
                 base_update.update({
                     "report_path_audio": audio_data.get("audio_path", ""),
+                    "audio_content_text": audio_data.get("summary", ""),  # 保存语音播客的文字内容
                     "logs": logs + [f"🎧 Audio report: {audio_data.get('access_token', 'No token')}"]
                 })
             else:
                 logger.warning(f"Audio generation failed or not available: {audio_data}")
                 base_update.update({
                     "report_path_audio": "",
+                    "audio_content_text": "",  # 空字符串表示无音频内容
                     "logs": logs + ["⚠️ No audio report generated"]
                 })
             

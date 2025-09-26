@@ -2014,12 +2014,14 @@ body {
 .user-settings-modal {
     max-width: 400px;
     width: 90%;
-    max-height: 80vh;
+    max-height: 85vh;
     background: #ffffff;
     border-radius: 16px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
     overflow: hidden;
     animation: slideInUp 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
 }
 
 .user-settings-header {
@@ -2091,7 +2093,29 @@ body {
 
 .user-settings-body {
     padding: 24px;
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(85vh - 120px);
 }
+
+.user-settings-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.user-settings-body::-webkit-scrollbar-track {
+    background: #f5f5f5;
+    border-radius: 3px;
+}
+
+.user-settings-body::-webkit-scrollbar-thumb {
+    background: #FF6600;
+    border-radius: 3px;
+}
+
+.user-settings-body::-webkit-scrollbar-thumb:hover {
+    background: #E55A00;
+}
+
 
 .settings-section {
     margin-bottom: 0;

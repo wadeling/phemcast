@@ -81,6 +81,8 @@ def setup_logging(
     logging.getLogger('uvicorn').setLevel(logging.WARNING)
     logging.getLogger('fastapi').setLevel(logging.WARNING)
     logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger('httpcore').setLevel(logging.WARNING)
+    logging.getLogger('anyio').setLevel(logging.WARNING)
     
     # Set Tencent Cloud SDK loggers to WARNING level to reduce noise
     logging.getLogger('tencentcloud_sdk_common').setLevel(logging.WARNING)

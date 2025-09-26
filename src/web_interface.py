@@ -132,12 +132,16 @@ class RegisterRequest(BaseModel):
 class UserSettingsRequest(BaseModel):
     """User settings request."""
     email_notifications: bool = Field(..., description="Enable email notifications")
+    feishu_webhook_url: Optional[str] = Field(None, description="Feishu webhook URL")
+    feishu_notifications_enabled: bool = Field(False, description="Enable Feishu notifications")
 
 
 class UserSettingsResponse(BaseModel):
     """User settings response."""
     username: str = Field(..., description="Username")
     email_notifications: bool = Field(..., description="Enable email notifications")
+    feishu_webhook_url: Optional[str] = Field(None, description="Feishu webhook URL")
+    feishu_notifications_enabled: bool = Field(False, description="Enable Feishu notifications")
     created_at: str = Field(..., description="Created at")
     updated_at: str = Field(..., description="Updated at")
 
@@ -938,7 +942,7 @@ async def get_user_settings(current_user: User = Depends(get_current_user)):
             # Get or create user settings
             result = await session.execute(
                 text("""
-                    SELECT id, username, email_notifications, created_at, updated_at
+                    SELECT id, username, email_notifications, feishu_webhook_url, feishu_notifications_enabled, created_at, updated_at
                     FROM user_settings 
                     WHERE username = :username
                 """),
@@ -952,13 +956,15 @@ async def get_user_settings(current_user: User = Depends(get_current_user)):
                 settings_id = str(uuid.uuid4())
                 await session.execute(
                     text("""
-                        INSERT INTO user_settings (id, username, email_notifications, created_at, updated_at)
-                        VALUES (:id, :username, :email_notifications, :created_at, :updated_at)
+                        INSERT INTO user_settings (id, username, email_notifications, feishu_webhook_url, feishu_notifications_enabled, created_at, updated_at)
+                        VALUES (:id, :username, :email_notifications, :feishu_webhook_url, :feishu_notifications_enabled, :created_at, :updated_at)
                     """),
                     {
                         "id": settings_id,
                         "username": current_user.username,
                         "email_notifications": True,
+                        "feishu_webhook_url": None,
+                        "feishu_notifications_enabled": False,
                         "created_at": datetime.utcnow(),
                         "updated_at": datetime.utcnow()
                     }
@@ -969,6 +975,8 @@ async def get_user_settings(current_user: User = Depends(get_current_user)):
                 return UserSettingsResponse(
                     username=current_user.username,
                     email_notifications=True,
+                    feishu_webhook_url=None,
+                    feishu_notifications_enabled=False,
                     created_at=datetime.utcnow().isoformat(),
                     updated_at=datetime.utcnow().isoformat()
                 )
@@ -976,6 +984,8 @@ async def get_user_settings(current_user: User = Depends(get_current_user)):
             return UserSettingsResponse(
                 username=row.username,
                 email_notifications=row.email_notifications,
+                feishu_webhook_url=row.feishu_webhook_url,
+                feishu_notifications_enabled=row.feishu_notifications_enabled or False,
                 created_at=row.created_at.isoformat(),
                 updated_at=row.updated_at.isoformat()
             )
@@ -1000,11 +1010,16 @@ async def update_user_settings(
             result = await session.execute(
                 text("""
                     UPDATE user_settings 
-                    SET email_notifications = :email_notifications, updated_at = :updated_at
+                    SET email_notifications = :email_notifications, 
+                        feishu_webhook_url = :feishu_webhook_url,
+                        feishu_notifications_enabled = :feishu_notifications_enabled,
+                        updated_at = :updated_at
                     WHERE username = :username
                 """),
                 {
                     "email_notifications": request.email_notifications,
+                    "feishu_webhook_url": request.feishu_webhook_url,
+                    "feishu_notifications_enabled": request.feishu_notifications_enabled,
                     "updated_at": datetime.utcnow(),
                     "username": current_user.username
                 }
@@ -1016,13 +1031,15 @@ async def update_user_settings(
                 settings_id = str(uuid.uuid4())
                 await session.execute(
                     text("""
-                        INSERT INTO user_settings (id, username, email_notifications, created_at, updated_at)
-                        VALUES (:id, :username, :email_notifications, :created_at, :updated_at)
+                        INSERT INTO user_settings (id, username, email_notifications, feishu_webhook_url, feishu_notifications_enabled, created_at, updated_at)
+                        VALUES (:id, :username, :email_notifications, :feishu_webhook_url, :feishu_notifications_enabled, :created_at, :updated_at)
                     """),
                     {
                         "id": settings_id,
                         "username": current_user.username,
                         "email_notifications": request.email_notifications,
+                        "feishu_webhook_url": request.feishu_webhook_url,
+                        "feishu_notifications_enabled": request.feishu_notifications_enabled,
                         "created_at": datetime.utcnow(),
                         "updated_at": datetime.utcnow()
                     }
@@ -1078,6 +1095,7 @@ async def _process_task_group(
                 processed_results.append(result)
                 logger.info(f"Company {company_configs[i]['name']} completed")
         
+        logger.info(f"Processed results: {processed_results}")
         # Aggregate all results and send final email
         await _aggregate_and_send_final_report(
             task_group_id,
@@ -1148,7 +1166,7 @@ async def _process_single_company_task(
         # Calculate completion time and duration
         completed_at = datetime.utcnow()
         duration = int((completed_at - started_at).total_seconds())
-        logger.info(f"Company {company_name} workflow completed successfully,task_id: {task_id},result: {result}")
+        logger.info(f"Company {company_name} workflow completed successfully,task_id: {task_id}")
         
         # Record task completion in database
         try:
@@ -1329,38 +1347,30 @@ async def _aggregate_and_send_final_report(
             all_articles, all_company_insights, include_audio=False
         )
         
-        # Check user settings for email notifications
+        # Execute post-actions (email and Feishu notifications)
+        from post_actions import PostActionManager
+        from feishu_service import FeishuNotificationService
+        from email_service import EmailNotificationService
+        
+        post_action_manager = PostActionManager()
+        
+        # Add email notification action
+        post_action_manager.add_action(EmailNotificationService())
+        
+        # Add Feishu notification action
+        post_action_manager.add_action(FeishuNotificationService())
+        
+        # Execute all post-actions
+        post_action_results = await post_action_manager.execute_all(
+            task_group_id, task_results, user_name
+        )
+        
+        # Extract email_sent status from results (for backward compatibility)
         email_sent = False
-        user_email = None
-        
-        # Get user settings to check if email notifications are enabled
-        user_email, email_notifications = await get_user_email_settings(user_name)
-        
-        # Send aggregated email if notifications are enabled and user has email
-        if email_notifications and user_email and report_paths:
-            try:
-                email_service = EmailService(settings)
-                report_metadata = {
-                    "total_articles": total_articles,
-                    "companies": successful_companies,
-                    "execution_date": datetime.now(),
-                    "task_group_id": task_group_id
-                }
-                
-                email_results = await email_service.send_bulk_reports(
-                    [user_email], report_paths, report_metadata
-                )
-                email_sent = any(email_results.values())
-                logger.info(f"Aggregated email sent to {user_email}: {email_sent}")
-            except Exception as e:
-                logger.error(f"Failed to send aggregated email: {e}")
-        else:
-            if not email_notifications:
-                logger.info(f"Email notifications disabled for user {user_name}")
-            elif not user_email:
-                logger.warning(f"No email address found for user {user_name}")
-            elif not report_paths:
-                logger.warning("No report paths available for email")
+        for result in post_action_results:
+            if hasattr(result, 'success') and result.success and "email" in result.message.lower():
+                email_sent = True
+                break
         
         # Broadcast completion status
         await manager.broadcast({
